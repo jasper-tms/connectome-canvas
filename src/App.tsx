@@ -1,0 +1,287 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  MiniMap,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  type Node,
+  type Edge,
+  type Connection,
+  type OnConnect,
+  MarkerType,
+  BackgroundVariant,
+  ConnectionMode,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+
+import NeuronNode from './nodes/NeuronNode';
+import SynapseEdge from './edges/SynapseEdge';
+import Toolbar from './components/Toolbar';
+import PropertiesPanel from './components/PropertiesPanel';
+import ImportModal from './components/ImportModal';
+import type { NeuronNodeData, SynapseEdgeData, ControlPoint } from './types';
+import {
+  serializeCanvas,
+  deserializeCanvas,
+  exportAsYaml,
+  importFromText,
+  downloadFile,
+} from './utils/serialize';
+
+const nodeTypes = { neuron: NeuronNode };
+const edgeTypes = { synapse: SynapseEdge };
+
+let idCounter = 1;
+function nextId() { return String(idCounter++); }
+
+const COLORS = ['#6ee7b7', '#7c8cff', '#f9a8d4', '#fcd34d', '#6dd6fa', '#f87171', '#a78bfa'];
+function nextColor() { return COLORS[(idCounter - 1) % COLORS.length]; }
+
+const DEFAULT_EDGE_OPTIONS = {
+  type: 'synapse',
+  markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
+};
+
+const INITIAL_NODES: Node[] = [
+  {
+    id: nextId(),
+    type: 'neuron',
+    position: { x: 200, y: 200 },
+    data: { label: 'AVAL', color: '#6ee7b7', shape: 'circle', rotation: 0 } satisfies NeuronNodeData,
+  },
+  {
+    id: nextId(),
+    type: 'neuron',
+    position: { x: 420, y: 200 },
+    data: { label: 'AVAR', color: '#7c8cff', shape: 'circle', rotation: 0 } satisfies NeuronNodeData,
+  },
+  {
+    id: nextId(),
+    type: 'neuron',
+    position: { x: 310, y: 340 },
+    data: { label: 'DB01', color: '#f9a8d4', shape: 'rectangle', rotation: 15 } satisfies NeuronNodeData,
+  },
+];
+
+const INITIAL_EDGES: Edge[] = [
+  {
+    id: 'e1',
+    source: '1',
+    target: '2',
+    type: 'synapse',
+    markerEnd: { type: MarkerType.ArrowClosed },
+    data: { synapseCount: 22, controlPoints: [] } satisfies SynapseEdgeData,
+  },
+  {
+    id: 'e2',
+    source: '1',
+    target: '3',
+    type: 'synapse',
+    markerEnd: { type: MarkerType.ArrowClosed },
+    data: { synapseCount: 8, controlPoints: [] } satisfies SynapseEdgeData,
+  },
+];
+
+export default function App() {
+  const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_EDGES);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [projectName, setProjectName] = useState('untitled');
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
+  const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
+  const hasSelection = !!(selectedNodeId || selectedEdgeId);
+
+  // Callback for edge components to update their control points
+  const onControlPointsChange = useCallback(
+    (edgeId: string, points: ControlPoint[]) => {
+      setEdges((eds) =>
+        eds.map((e) =>
+          e.id === edgeId ? { ...e, data: { ...e.data, controlPoints: points } } : e,
+        ),
+      );
+    },
+    [setEdges],
+  );
+
+  // Inject the callback into every edge's data
+  const enrichedEdges = useMemo(
+    () =>
+      edges.map((e) => ({
+        ...e,
+        data: { ...e.data, onControlPointsChange },
+      })),
+    [edges, onControlPointsChange],
+  );
+
+  const onSelectionChange = useCallback(({ nodes: sNodes, edges: sEdges }: { nodes: Node[]; edges: Edge[] }) => {
+    setSelectedNodeId(sNodes.length === 1 ? sNodes[0].id : null);
+    setSelectedEdgeId(sEdges.length === 1 ? sEdges[0].id : null);
+  }, []);
+
+  const onConnect: OnConnect = useCallback(
+    (connection: Connection) => {
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            ...DEFAULT_EDGE_OPTIONS,
+            id: `e${nextId()}`,
+            data: { synapseCount: 0, controlPoints: [] } satisfies SynapseEdgeData,
+          },
+          eds,
+        ),
+      );
+    },
+    [setEdges],
+  );
+
+  function addNode(shape: 'circle' | 'rectangle') {
+    const id = nextId();
+    const color = nextColor();
+    const node: Node = {
+      id,
+      type: 'neuron',
+      position: { x: 200 + Math.random() * 200, y: 200 + Math.random() * 200 },
+      data: { label: `N${id}`, color, shape, rotation: 0 } satisfies NeuronNodeData,
+    };
+    setNodes((nds) => [...nds, node]);
+  }
+
+  function deleteSelected() {
+    if (selectedNodeId) {
+      setNodes((nds) => nds.filter((n) => n.id !== selectedNodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId));
+      setSelectedNodeId(null);
+    }
+    if (selectedEdgeId) {
+      setEdges((eds) => eds.filter((e) => e.id !== selectedEdgeId));
+      setSelectedEdgeId(null);
+    }
+  }
+
+  function updateNodeData(id: string, patch: Partial<NeuronNodeData>) {
+    setNodes((nds) =>
+      nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
+    );
+  }
+
+  function updateEdgeData(id: string, patch: Partial<SynapseEdgeData>) {
+    setEdges((eds) =>
+      eds.map((e) => (e.id === id ? { ...e, data: { ...e.data, ...patch } } : e)),
+    );
+  }
+
+  function handleExport() {
+    const slug = projectName.trim().replace(/\s+/g, '_') || 'untitled';
+    downloadFile(
+      exportAsYaml(serializeCanvas(nodes, edges, projectName)),
+      `connectome-canvas_${slug}.yaml`,
+    );
+  }
+
+  function handleImport(text: string) {
+    const state = importFromText(text);
+    const { nodes: newNodes, edges: newEdges } = deserializeCanvas(state);
+    setNodes(newNodes);
+    setEdges(newEdges);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    if (state.projectName) setProjectName(state.projectName);
+    const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
+    idCounter = Math.max(idCounter, ...allIds) + 1;
+  }
+
+  // Delete key handler
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputActive()) {
+        deleteSelected();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <div ref={reactFlowWrapper} style={{ width: '100%', height: '100%' }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={enrichedEdges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onSelectionChange={onSelectionChange}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
+          fitView
+          connectionMode={ConnectionMode.Loose}
+          proOptions={{ hideAttribution: false }}
+          style={{ background: '#ffffff' }}
+          deleteKeyCode={null}
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={24}
+            size={1}
+            color="#cbd5e1"
+          />
+          <Controls
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+            }}
+          />
+          <MiniMap
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+            }}
+            nodeColor={(n) => ((n.data as NeuronNodeData).color ?? '#94a3b8')}
+            maskColor="#ffffff80"
+          />
+        </ReactFlow>
+      </div>
+
+      <Toolbar
+        projectName={projectName}
+        onProjectNameChange={setProjectName}
+        onAddCircle={() => addNode('circle')}
+        onAddRect={() => addNode('rectangle')}
+        onDeleteSelected={deleteSelected}
+        hasSelection={hasSelection}
+        onExport={handleExport}
+        onImport={() => setShowImport(true)}
+      />
+
+      <PropertiesPanel
+        selectedNode={selectedNode}
+        selectedEdge={selectedEdge}
+        onUpdateNode={updateNodeData}
+        onUpdateEdge={updateEdgeData}
+      />
+
+      {showImport && (
+        <ImportModal
+          onImport={handleImport}
+          onClose={() => setShowImport(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function isInputActive(): boolean {
+  const el = document.activeElement;
+  return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+}
