@@ -1,4 +1,4 @@
-import { Handle, Position, NodeProps, useConnection } from '@xyflow/react';
+import { Handle, Position, NodeProps, useConnection, useEdges } from '@xyflow/react';
 import type { NeuronNodeData } from '../types';
 
 /**
@@ -17,6 +17,14 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
   const { label, color, shape, rotation, locked, fontSize } = nodeData;
   const connection = useConnection();
   const isConnecting = connection.inProgress;
+  const edges = useEdges();
+
+  // Determine if this node is a valid target for the in-progress connection.
+  // Invalid if: this is the source node, or an edge from source→this already exists.
+  const sourceId = isConnecting ? (connection as any).fromNode?.id as string | undefined : undefined;
+  const isValidTarget = isConnecting && sourceId !== id &&
+    !edges.some((e) => e.source === sourceId && e.target === id);
+  const isConnectionTarget = isValidTarget && (connection as any).toNode?.id === id;
 
   const outlineColor = selected ? '#7c8cff' : color;
   const outlineWidth = selected ? 3 : 2;
@@ -92,7 +100,9 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           height: nodeHeight + 16,
           borderRadius: shape === 'circle' ? '50%' : 6,
           background: 'transparent',
-          border: isConnecting ? `2px dashed ${color}88` : 'none',
+          border: isConnecting && isValidTarget
+            ? `2px dashed ${isConnectionTarget ? color : color + '88'}`
+            : 'none',
           opacity: 1,
           cursor: 'crosshair',
           zIndex: 10,

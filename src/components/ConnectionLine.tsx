@@ -1,6 +1,11 @@
+import { useEffect, useState } from 'react';
 import type { ConnectionLineComponentProps } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
 import { pendingAngles } from '../nodes/NeuronNode';
-import { borderPoint, angleToNode } from '../utils/geometry';
+import { borderPoint } from '../utils/geometry';
+
+// Module-level ref to store the final connection end position in flow coordinates
+export const lastConnectionEndPos = { x: 0, y: 0 };
 
 export default function ConnectionLine({
   fromNode,
@@ -8,8 +13,23 @@ export default function ConnectionLine({
   fromY,
   toX,
   toY,
-  toNode,
 }: ConnectionLineComponentProps) {
+  const { screenToFlowPosition } = useReactFlow();
+  const [cursorPos, setCursorPos] = useState({ x: toX, y: toY });
+
+  // Track the real cursor position so the endpoint always follows the mouse,
+  // even when XYFlow snaps toX/toY to a handle center.
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      const pos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      setCursorPos(pos);
+      lastConnectionEndPos.x = pos.x;
+      lastConnectionEndPos.y = pos.y;
+    }
+    window.addEventListener('mousemove', onMouseMove);
+    return () => window.removeEventListener('mousemove', onMouseMove);
+  }, [screenToFlowPosition]);
+
   // Compute the actual border point on the source node using the recorded click angle.
   let startX = fromX;
   let startY = fromY;
@@ -20,22 +40,12 @@ export default function ConnectionLine({
     startY = pt.y;
   }
 
-  // When hovering a target node, snap to its border in the direction of the source.
-  let endX = toX;
-  let endY = toY;
-  if (toNode) {
-    const angle = angleToNode(toNode, { x: startX, y: startY });
-    const pt = borderPoint(toNode, angle);
-    endX = pt.x;
-    endY = pt.y;
-  }
-
   return (
     <line
       x1={startX}
       y1={startY}
-      x2={endX}
-      y2={endY}
+      x2={cursorPos.x}
+      y2={cursorPos.y}
       stroke="#94a3b8"
       strokeWidth={1.5}
       strokeDasharray="6 4"

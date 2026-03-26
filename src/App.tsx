@@ -19,7 +19,7 @@ import '@xyflow/react/dist/style.css';
 
 import NeuronNode, { pendingAngles } from './nodes/NeuronNode';
 import SynapseEdge from './edges/SynapseEdge';
-import ConnectionLine from './components/ConnectionLine';
+import ConnectionLine, { lastConnectionEndPos } from './components/ConnectionLine';
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ImportModal from './components/ImportModal';
@@ -181,12 +181,25 @@ export default function App() {
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
-      // Read the angles captured by each node's onMouseDown handler.
-      // Default: source exits to the right (0°), target receives from the left (180°).
+      // Read the angle captured by the source node's onMouseDown handler.
+      // Default: source exits to the right (0°).
       const sourceAngle = pendingAngles.get(connection.source) ?? 0;
-      const targetAngle = pendingAngles.get(connection.target) ?? 180;
       pendingAngles.delete(connection.source);
       pendingAngles.delete(connection.target);
+
+      // Calculate target angle from the target node center to the connection end position.
+      // This matches how ConnectionLine calculates the angle during the drag preview.
+      let targetAngle = 180;
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (targetNode) {
+        const nodeWidth = (targetNode as any).measured?.width ?? 90;
+        const nodeHeight = (targetNode as any).measured?.height ?? 44;
+        const cx = targetNode.position.x + nodeWidth / 2;
+        const cy = targetNode.position.y + nodeHeight / 2;
+        const dx = lastConnectionEndPos.x - cx;
+        const dy = lastConnectionEndPos.y - cy;
+        targetAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+      }
 
       setEdges((eds) =>
         addEdge(
@@ -205,7 +218,7 @@ export default function App() {
         ),
       );
     },
-    [setEdges],
+    [setEdges, nodes],
   );
 
   function addNode(shape: 'circle' | 'rectangle') {
