@@ -17,8 +17,9 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import NeuronNode from './nodes/NeuronNode';
+import NeuronNode, { pendingAngles } from './nodes/NeuronNode';
 import SynapseEdge from './edges/SynapseEdge';
+import ConnectionLine from './components/ConnectionLine';
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ImportModal from './components/ImportModal';
@@ -110,14 +111,40 @@ export default function App() {
     [setEdges],
   );
 
-  // Inject the callback into every edge's data
+  // Callback for edge components to update the label position
+  const onLabelPositionChange = useCallback(
+    (edgeId: string, t: number) => {
+      setEdges((eds) =>
+        eds.map((e) =>
+          e.id === edgeId ? { ...e, data: { ...e.data, labelPosition: t } } : e,
+        ),
+      );
+    },
+    [setEdges],
+  );
+
+  // Callback for edge components to update source/target attachment angles
+  const onAngleChange = useCallback(
+    (edgeId: string, end: 'source' | 'target', angle: number) => {
+      setEdges((eds) =>
+        eds.map((e) =>
+          e.id === edgeId
+            ? { ...e, data: { ...e.data, [end === 'source' ? 'sourceAngle' : 'targetAngle']: angle } }
+            : e,
+        ),
+      );
+    },
+    [setEdges],
+  );
+
+  // Inject the callbacks into every edge's data
   const enrichedEdges = useMemo(
     () =>
       edges.map((e) => ({
         ...e,
-        data: { ...e.data, onControlPointsChange },
+        data: { ...e.data, onControlPointsChange, onLabelPositionChange, onAngleChange },
       })),
-    [edges, onControlPointsChange],
+    [edges, onControlPointsChange, onLabelPositionChange, onAngleChange],
   );
 
   const onSelectionChange = useCallback(({ nodes: sNodes, edges: sEdges }: { nodes: Node[]; edges: Edge[] }) => {
@@ -127,13 +154,25 @@ export default function App() {
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
+      // Read the angles captured by each node's onMouseDown handler.
+      // Default: source exits to the right (0°), target receives from the left (180°).
+      const sourceAngle = pendingAngles.get(connection.source) ?? 0;
+      const targetAngle = pendingAngles.get(connection.target) ?? 180;
+      pendingAngles.delete(connection.source);
+      pendingAngles.delete(connection.target);
+
       setEdges((eds) =>
         addEdge(
           {
             ...connection,
             ...DEFAULT_EDGE_OPTIONS,
             id: `e${nextId()}`,
-            data: { synapseCount: 0, controlPoints: [] } satisfies SynapseEdgeData,
+            data: {
+              synapseCount: 0,
+              controlPoints: [],
+              sourceAngle,
+              targetAngle,
+            } satisfies SynapseEdgeData,
           },
           eds,
         ),
@@ -224,6 +263,7 @@ export default function App() {
           defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
           fitView
           connectionMode={ConnectionMode.Loose}
+          connectionLineComponent={ConnectionLine}
           proOptions={{ hideAttribution: false }}
           style={{ background: '#ffffff' }}
           deleteKeyCode={null}

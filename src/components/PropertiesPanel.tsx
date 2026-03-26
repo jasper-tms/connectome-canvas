@@ -54,17 +54,51 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           </div>
         </Field>
 
-        {d.shape === 'rectangle' && (
-          <Field label={`Rotation: ${d.rotation ?? 0}°`}>
+        {d.shape === 'circle' && (
+          <Field label="Radius">
             <input
-              type="range"
-              min={-180}
-              max={180}
-              step={1}
-              value={d.rotation ?? 0}
-              onChange={(e) => onUpdateNode(selectedNode.id, { rotation: Number(e.target.value) })}
+              type="number"
+              min={10}
+              max={200}
+              value={d.radius ?? 35}
+              onChange={(e) => onUpdateNode(selectedNode.id, { radius: Math.min(200, Math.max(10, Number(e.target.value))) })}
             />
           </Field>
+        )}
+
+        {d.shape === 'rectangle' && (
+          <>
+            <Field label="Width">
+              <input
+                type="number"
+                min={20}
+                max={400}
+                value={d.width ?? 90}
+                onChange={(e) => onUpdateNode(selectedNode.id, { width: Math.min(400, Math.max(20, Number(e.target.value))) })}
+              />
+            </Field>
+
+            <Field label="Height">
+              <input
+                type="number"
+                min={20}
+                max={200}
+                value={d.height ?? 44}
+                onChange={(e) => onUpdateNode(selectedNode.id, { height: Math.min(200, Math.max(20, Number(e.target.value))) })}
+              />
+            </Field>
+
+            <Field label={`Rotation: ${d.rotation ?? 0}°`}>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={d.rotation ?? 0}
+                onChange={(e) => onUpdateNode(selectedNode.id, { rotation: Number(e.target.value) })}
+              />
+            </Field>
+          </>
         )}
 
         <Field label="ID">
@@ -89,6 +123,17 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
             min={0}
             value={synapseCount}
             onChange={(e) => onUpdateEdge(selectedEdge.id, { synapseCount: Math.max(0, Number(e.target.value)) })}
+          />
+        </Field>
+
+        <Field label={`Label Position: ${((d?.labelPosition ?? 0.5) * 100).toFixed(0)}%`}>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={d?.labelPosition ?? 0.5}
+            onChange={(e) => onUpdateEdge(selectedEdge.id, { labelPosition: Number(e.target.value) })}
           />
         </Field>
 

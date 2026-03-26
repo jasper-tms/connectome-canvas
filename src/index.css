@@ -62,6 +62,19 @@ input:focus {
   border-color: #6366f1;
 }
 
+/* Render edges above nodes so edge clicks aren't blocked by overlapping nodes.
+   Setting z-index on __nodes creates a stacking context so that selected nodes
+   (which get z-index: 1000 inline) stay scoped within it. */
+.react-flow__nodes {
+  z-index: 0;
+}
+.react-flow__edges {
+  z-index: 1;
+}
+.react-flow__edgelabel-renderer {
+  z-index: 1;
+}
+
 label {
   font-size: 11px;
   color: #64748b;

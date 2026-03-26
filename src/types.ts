@@ -10,13 +10,21 @@ export interface NeuronNodeData {
   color: string;
   shape: NeuronShape;
   rotation: number; // degrees, used for rectangle orientation
+  radius?: number;  // for circle nodes, default 35
+  width?: number;   // for rectangle nodes, default 90
+  height?: number;  // for rectangle nodes, default 44
   [key: string]: unknown;
 }
 
 export interface SynapseEdgeData {
   synapseCount: number;
   controlPoints: ControlPoint[];
+  labelPosition?: number; // 0–1 along the spline from source to target, default 0.5
   onControlPointsChange?: (edgeId: string, points: ControlPoint[]) => void;
+  onLabelPositionChange?: (edgeId: string, t: number) => void;
+  onAngleChange?: (edgeId: string, end: 'source' | 'target', angle: number) => void;
+  sourceAngle?: number; // degrees from node center, 0=right, 90=down (standard math angle)
+  targetAngle?: number; // degrees from node center, 0=right, 90=down
   [key: string]: unknown;
 }
 
@@ -28,6 +36,9 @@ export interface SerializedNode {
   label: string;
   color: string;
   rotation: number;
+  radius?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface SerializedEdge {
@@ -38,6 +49,9 @@ export interface SerializedEdge {
   targetHandle?: string | null;
   synapseCount: number;
   controlPoints: ControlPoint[];
+  labelPosition?: number;
+  sourceAngle?: number;
+  targetAngle?: number;
 }
 
 export interface CanvasState {

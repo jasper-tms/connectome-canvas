@@ -1,14 +1,18 @@
 import { Handle, Position, NodeProps, useConnection } from '@xyflow/react';
 import type { NeuronNodeData } from '../types';
 
-const HANDLE_STYLE = {
-  width: 10,
-  height: 10,
-  background: '#7c8cff',
-  border: '2px solid #ffffff',
-};
+/**
+ * Module-level map that stores the most recent connection-start angle (in degrees)
+ * for each node. Keyed by nodeId. Populated by onMouseDown on the node container;
+ * read by App.tsx's onConnect callback to attach the angle to new edges.
+ *
+ * Convention: 0° = right, 90° = down (standard canvas/atan2 orientation).
+ */
+export const pendingAngles = new Map<string, number>();
 
-export default function NeuronNode({ data, selected }: NodeProps) {
+const BORDER_ZONE = 12;
+
+export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NeuronNodeData;
   const { label, color, shape, rotation } = nodeData;
   const connection = useConnection();
@@ -17,11 +21,18 @@ export default function NeuronNode({ data, selected }: NodeProps) {
   const outlineColor = selected ? '#7c8cff' : color;
   const outlineWidth = selected ? 3 : 2;
 
+  const radius = nodeData.radius ?? 35;
+  const rectWidth = nodeData.width ?? 90;
+  const rectHeight = nodeData.height ?? 44;
+
+  const nodeWidth = shape === 'circle' ? radius * 2 : rectWidth;
+  const nodeHeight = shape === 'circle' ? radius * 2 : rectHeight;
+
   const shapeStyle: React.CSSProperties =
     shape === 'circle'
       ? {
-          width: 70,
-          height: 70,
+          width: nodeWidth,
+          height: nodeHeight,
           borderRadius: '50%',
           background: color + '30',
           border: `${outlineWidth}px solid ${outlineColor}`,
@@ -31,8 +42,8 @@ export default function NeuronNode({ data, selected }: NodeProps) {
           position: 'relative',
         }
       : {
-          width: 90,
-          height: 44,
+          width: nodeWidth,
+          height: nodeHeight,
           borderRadius: 6,
           background: color + '30',
           border: `${outlineWidth}px solid ${outlineColor}`,
@@ -43,32 +54,64 @@ export default function NeuronNode({ data, selected }: NodeProps) {
           transform: `rotate(${rotation ?? 0}deg)`,
         };
 
+  // When the user presses the mouse button anywhere on this node, record the angle
+  // from the node center to the click point. This is read by App.tsx's onConnect.
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180..180
+    pendingAngles.set(id, angle);
+  }
+
   return (
-    <div style={{ position: 'relative' }}>
-      {/* Source-only handles — connectionMode="loose" on the canvas lets these also receive connections */}
+    <div
+      style={{ position: 'relative' }}
+      onMouseDown={handleMouseDown}
+    >
+      {/*
+        Single invisible Handle that covers the entire node area.
+        This replaces the 4 cardinal handles and lets users start a connection
+        from anywhere on the node boundary.
+        connectionMode="Loose" (set in App.tsx) means this source handle also
+        accepts incoming connections as a target.
+      */}
       <Handle
         type="source"
         position={Position.Top}
-        id="top"
-        style={{ ...HANDLE_STYLE, top: -5, opacity: isConnecting ? 1 : undefined }}
+        id="border"
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: nodeWidth + 16,
+          height: nodeHeight + 16,
+          borderRadius: shape === 'circle' ? '50%' : 6,
+          background: 'transparent',
+          border: isConnecting ? `2px dashed ${color}88` : 'none',
+          opacity: 1,
+          cursor: 'crosshair',
+          zIndex: 10,
+        }}
       />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        style={{ ...HANDLE_STYLE, right: -5, opacity: isConnecting ? 1 : undefined }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        style={{ ...HANDLE_STYLE, bottom: -5, opacity: isConnecting ? 1 : undefined }}
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        style={{ ...HANDLE_STYLE, left: -5, opacity: isConnecting ? 1 : undefined }}
+
+      {/* Interior hit-zone: sits above the Handle (z‑index 20) so interior pointer
+          events bubble through to XYFlow's drag handler instead of starting a connection. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: Math.max(0, nodeWidth - 2 * BORDER_ZONE),
+          height: Math.max(0, nodeHeight - 2 * BORDER_ZONE),
+          borderRadius: shape === 'circle' ? '50%' : 4,
+          background: 'transparent',
+          zIndex: 20,
+        }}
       />
 
       <div style={shapeStyle}>
@@ -79,7 +122,7 @@ export default function NeuronNode({ data, selected }: NodeProps) {
             color: '#1e293b',
             textAlign: 'center',
             lineHeight: 1.2,
-            maxWidth: 80,
+            maxWidth: nodeWidth - 10,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',

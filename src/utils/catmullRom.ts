@@ -75,6 +75,58 @@ function evaluateCubicBezierOnSegment(points: Point[], segIdx: number, t: number
 }
 
 /**
+ * Build a lookup table mapping arc-length fraction [0,1] to spline parameter t.
+ * Uses uniform sampling to approximate cumulative arc length, then allows
+ * converting a desired fraction of total length to the corresponding t.
+ */
+export function buildArcLengthTable(points: Point[], samples: number = 200): { t: number; len: number }[] {
+  const table: { t: number; len: number }[] = [{ t: 0, len: 0 }];
+  let prev = pointOnSpline(points, 0);
+  let cumLen = 0;
+  for (let i = 1; i <= samples; i++) {
+    const t = i / samples;
+    const cur = pointOnSpline(points, t);
+    cumLen += Math.hypot(cur.x - prev.x, cur.y - prev.y);
+    table.push({ t, len: cumLen });
+    prev = cur;
+  }
+  return table;
+}
+
+/**
+ * Given an arc-length fraction u in [0,1] (where 0 = start, 1 = end,
+ * 0.5 = geometric midpoint), return the corresponding spline parameter t.
+ */
+export function arcLengthToT(table: { t: number; len: number }[], u: number): number {
+  const totalLen = table[table.length - 1].len;
+  if (totalLen === 0) return u;
+  const targetLen = u * totalLen;
+
+  // Binary search for the segment containing targetLen
+  let lo = 0;
+  let hi = table.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (table[mid].len < targetLen) lo = mid;
+    else hi = mid;
+  }
+
+  const segLen = table[hi].len - table[lo].len;
+  if (segLen === 0) return table[lo].t;
+  const frac = (targetLen - table[lo].len) / segLen;
+  return table[lo].t + frac * (table[hi].t - table[lo].t);
+}
+
+/**
+ * Convenience: evaluate a point on the spline at arc-length fraction u in [0,1].
+ */
+export function pointOnSplineByArcLength(points: Point[], u: number): Point {
+  const table = buildArcLengthTable(points);
+  const t = arcLengthToT(table, u);
+  return pointOnSpline(points, t);
+}
+
+/**
  * Find the segment of the spline closest to a given point.
  * Returns the segment index (in the allPoints array) and the closest point on the curve.
  * segment index i means the segment between allPoints[i] and allPoints[i+1].

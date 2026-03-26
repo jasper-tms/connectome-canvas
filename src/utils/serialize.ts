@@ -5,7 +5,7 @@ import type { NeuronNodeData, SynapseEdgeData, CanvasState, SerializedNode, Seri
 export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: string): CanvasState {
   const serializedNodes: SerializedNode[] = nodes.map((n) => {
     const d = n.data as NeuronNodeData;
-    return {
+    const node: SerializedNode = {
       id: n.id,
       shape: d.shape,
       position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },
@@ -13,11 +13,15 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
       color: d.color,
       rotation: d.rotation ?? 0,
     };
+    if (d.shape === 'circle' && d.radius !== undefined) node.radius = d.radius;
+    if (d.shape === 'rectangle' && d.width !== undefined) node.width = d.width;
+    if (d.shape === 'rectangle' && d.height !== undefined) node.height = d.height;
+    return node;
   });
 
   const serializedEdges: SerializedEdge[] = edges.map((e) => {
     const d = e.data as SynapseEdgeData | undefined;
-    return {
+    const serialized: SerializedEdge = {
       id: e.id,
       source: e.source,
       target: e.target,
@@ -29,23 +33,33 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
         y: Math.round(p.y),
       })),
     };
+    if (d?.labelPosition !== undefined) serialized.labelPosition = d.labelPosition;
+    if (d?.sourceAngle !== undefined) serialized.sourceAngle = d.sourceAngle;
+    if (d?.targetAngle !== undefined) serialized.targetAngle = d.targetAngle;
+    return serialized;
   });
 
   return { projectName: projectName || 'untitled', nodes: serializedNodes, edges: serializedEdges };
 }
 
 export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: Edge[] } {
-  const nodes: Node[] = state.nodes.map((n) => ({
-    id: n.id,
-    type: 'neuron',
-    position: n.position,
-    data: {
+  const nodes: Node[] = state.nodes.map((n) => {
+    const data: NeuronNodeData = {
       label: n.label,
       color: n.color,
       shape: n.shape,
       rotation: n.rotation ?? 0,
-    } satisfies NeuronNodeData,
-  }));
+    };
+    if (n.radius !== undefined) data.radius = n.radius;
+    if (n.width !== undefined) data.width = n.width;
+    if (n.height !== undefined) data.height = n.height;
+    return {
+      id: n.id,
+      type: 'neuron',
+      position: n.position,
+      data,
+    };
+  });
 
   const edges: Edge[] = state.edges.map((e) => ({
     id: e.id,
@@ -58,6 +72,9 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
     data: {
       synapseCount: e.synapseCount,
       controlPoints: e.controlPoints ?? [],
+      ...(e.labelPosition !== undefined ? { labelPosition: e.labelPosition } : {}),
+      ...(e.sourceAngle !== undefined ? { sourceAngle: e.sourceAngle } : {}),
+      ...(e.targetAngle !== undefined ? { targetAngle: e.targetAngle } : {}),
     } satisfies SynapseEdgeData,
   }));
 
