@@ -27,6 +27,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
         <Field label="Label">
           <input
+            id="node-label-input"
             type="text"
             value={d.label}
             onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}

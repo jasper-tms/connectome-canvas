@@ -152,6 +152,17 @@ export default function App() {
     setSelectedEdgeId(sEdges.length === 1 ? sEdges[0].id : null);
   }, []);
 
+  const onNodeDoubleClick = useCallback((_event: React.MouseEvent, _node: Node) => {
+    // Focus the label input in the properties panel and select all text
+    requestAnimationFrame(() => {
+      const input = document.getElementById('node-label-input') as HTMLInputElement | null;
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    });
+  }, []);
+
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
       // Read the angles captured by each node's onMouseDown handler.
@@ -237,11 +248,22 @@ export default function App() {
     idCounter = Math.max(idCounter, ...allIds) + 1;
   }
 
-  // Delete key handler
+  // Global key handlers
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputActive()) {
         deleteSelected();
+      }
+      if (e.key === 'Enter') {
+        // Blur any focused input, then deselect all nodes/edges
+        if (isInputActive()) {
+          (document.activeElement as HTMLElement).blur();
+        }
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        // Also clear XYFlow's internal selection
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -258,10 +280,13 @@ export default function App() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onSelectionChange={onSelectionChange}
+          onNodeDoubleClick={onNodeDoubleClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
           fitView
+          minZoom={0.25}
+          maxZoom={20}
           connectionMode={ConnectionMode.Loose}
           connectionLineComponent={ConnectionLine}
           proOptions={{ hideAttribution: false }}
