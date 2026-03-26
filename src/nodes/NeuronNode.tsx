@@ -10,11 +10,11 @@ import type { NeuronNodeData } from '../types';
  */
 export const pendingAngles = new Map<string, number>();
 
-const BORDER_ZONE = 12;
+const BORDER_ZONE = 4;
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NeuronNodeData;
-  const { label, color, shape, rotation, locked } = nodeData;
+  const { label, color, shape, rotation, locked, fontSize } = nodeData;
   const connection = useConnection();
   const isConnecting = connection.inProgress;
 
@@ -24,6 +24,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
   const radius = nodeData.radius ?? 35;
   const rectWidth = nodeData.width ?? 90;
   const rectHeight = nodeData.height ?? 44;
+  const labelFontSize = fontSize ?? 12;
 
   const nodeWidth = shape === 'circle' ? radius * 2 : rectWidth;
   const nodeHeight = shape === 'circle' ? radius * 2 : rectHeight;
@@ -117,7 +118,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
       <div style={shapeStyle}>
         <span
           style={{
-            fontSize: 12,
+            fontSize: labelFontSize,
             fontWeight: 600,
             color: '#1e293b',
             textAlign: 'center',

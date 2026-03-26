@@ -65,6 +65,16 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           />
         </Field>
 
+        <Field label="Font Size">
+          <input
+            type="number"
+            min={8}
+            max={48}
+            value={d.fontSize ?? 12}
+            onChange={(e) => onUpdateNode(selectedNode.id, { fontSize: Math.min(48, Math.max(8, Number(e.target.value))) })}
+          />
+        </Field>
+
         <Field label="Color">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
