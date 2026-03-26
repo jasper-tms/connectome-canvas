@@ -23,7 +23,31 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
     const d = selectedNode.data as NeuronNodeData;
     return (
       <div style={panelStyle}>
-        <h3 style={headingStyle}>Node — {d.shape}</h3>
+        <h3 style={headingStyle}>Node</h3>
+
+        <Field label="Shape">
+          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            {(['circle', 'rectangle'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => onUpdateNode(selectedNode.id, { shape: s })}
+                style={{
+                  flex: 1,
+                  padding: '4px 0',
+                  fontSize: 11,
+                  fontWeight: d.shape === s ? 700 : 400,
+                  background: d.shape === s ? '#6366f1' : '#f8fafc',
+                  color: d.shape === s ? '#fff' : '#64748b',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </Field>
 
         <Field label="Label">
           <input
