@@ -5,16 +5,23 @@ interface Props {
   selectedNode: Node | null;
   selectedEdge: Edge | null;
   onUpdateNode: (id: string, data: Partial<NeuronNodeData>) => void;
+  onUpdateNodePosition: (id: string, pos: { x?: number; y?: number }) => void;
   onUpdateEdge: (id: string, data: Partial<SynapseEdgeData>) => void;
+  lockedNodes: Node[];
+  onUnlockNode: (id: string) => void;
 }
 
-export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge }: Props) {
+export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNode, onUpdateNodePosition, onUpdateEdge, lockedNodes, onUnlockNode }: Props) {
   if (!selectedNode && !selectedEdge) {
     return (
       <div style={panelStyle}>
-        <p style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
-          Select a node or edge to edit its properties.
-        </p>
+        {lockedNodes.length === 0 ? (
+          <p style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
+            Select a node or edge to edit its properties.
+          </p>
+        ) : (
+          <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+        )}
       </div>
     );
   }
@@ -79,6 +86,25 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           </div>
         </Field>
 
+        <Field label="Position">
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>X</label>
+            <input
+              type="number"
+              value={Math.round(selectedNode.position.x)}
+              style={{ flex: 1 }}
+              onChange={(e) => onUpdateNodePosition(selectedNode.id, { x: Number(e.target.value) })}
+            />
+            <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>Y</label>
+            <input
+              type="number"
+              value={Math.round(selectedNode.position.y)}
+              style={{ flex: 1 }}
+              onChange={(e) => onUpdateNodePosition(selectedNode.id, { y: Number(e.target.value) })}
+            />
+          </div>
+        </Field>
+
         {d.shape === 'circle' && (
           <Field label="Radius">
             <input
@@ -129,6 +155,37 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
         <Field label="ID">
           <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{selectedNode.id}</span>
         </Field>
+
+        <button
+          onClick={() => onUpdateNode(selectedNode.id, { locked: true })}
+          style={{
+            width: '100%',
+            padding: '5px 0',
+            background: '#f8fafc',
+            color: '#64748b',
+            border: '1px solid #e2e8f0',
+            borderRadius: 6,
+            fontSize: 11,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+            <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
+            <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
+          </svg>
+          Lock
+        </button>
+
+        {lockedNodes.length > 0 && (
+          <>
+            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+          </>
+        )}
       </div>
     );
   }
@@ -192,6 +249,13 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
             {selectedEdge.source} → {selectedEdge.target}
           </span>
         </Field>
+
+        {lockedNodes.length > 0 && (
+          <>
+            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+          </>
+        )}
       </div>
     );
   }
@@ -229,3 +293,65 @@ const headingStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
 };
+
+function LockedNodesList({ lockedNodes, onUnlockNode }: { lockedNodes: Node[]; onUnlockNode: (id: string) => void }) {
+  return (
+    <div>
+      <h3 style={{ ...headingStyle, marginBottom: 10, color: '#64748b' }}>
+        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ verticalAlign: 'middle', marginRight: 4 }}>
+          <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
+          <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
+        </svg>
+        Locked ({lockedNodes.length})
+      </h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {lockedNodes.map((n) => {
+          const d = n.data as NeuronNodeData;
+          return (
+            <div
+              key={n.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '3px 6px',
+                borderRadius: 4,
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: d.shape === 'circle' ? '50%' : 2,
+                  background: d.color,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 11, color: '#334155', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {d.label}
+              </span>
+              <button
+                onClick={() => onUnlockNode(n.id)}
+                title="Unlock"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '1px 4px',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  color: '#6366f1',
+                  fontWeight: 600,
+                  flexShrink: 0,
+                }}
+              >
+                Unlock
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

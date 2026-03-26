@@ -99,6 +99,22 @@ export default function App() {
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
   const hasSelection = !!(selectedNodeId || selectedEdgeId);
 
+  // Set selectable/draggable/connectable to false for locked nodes
+  const interactiveNodes = useMemo(
+    () => nodes.map((n) => {
+      const locked = !!(n.data as NeuronNodeData).locked;
+      return locked
+        ? { ...n, selectable: false, draggable: false, connectable: false }
+        : n;
+    }),
+    [nodes],
+  );
+
+  const lockedNodes = useMemo(
+    () => nodes.filter((n) => !!(n.data as NeuronNodeData).locked),
+    [nodes],
+  );
+
   // Callback for edge components to update their control points
   const onControlPointsChange = useCallback(
     (edgeId: string, points: ControlPoint[]) => {
@@ -218,7 +234,26 @@ export default function App() {
 
   function updateNodeData(id: string, patch: Partial<NeuronNodeData>) {
     setNodes((nds) =>
-      nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
+      nds.map((n) => {
+        if (n.id !== id) return n;
+        const updated = { ...n, data: { ...n.data, ...patch } };
+        // When locking, also clear XYFlow's internal selected state
+        if (patch.locked) updated.selected = false;
+        return updated;
+      }),
+    );
+    if (patch.locked) {
+      setSelectedNodeId(null);
+    }
+  }
+
+  function updateNodePosition(id: string, pos: { x?: number; y?: number }) {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === id
+          ? { ...n, position: { x: pos.x ?? n.position.x, y: pos.y ?? n.position.y } }
+          : n,
+      ),
     );
   }
 
@@ -274,7 +309,7 @@ export default function App() {
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <div ref={reactFlowWrapper} style={{ width: '100%', height: '100%' }}>
         <ReactFlow
-          nodes={nodes}
+          nodes={interactiveNodes}
           edges={enrichedEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -333,7 +368,10 @@ export default function App() {
         selectedNode={selectedNode}
         selectedEdge={selectedEdge}
         onUpdateNode={updateNodeData}
+        onUpdateNodePosition={updateNodePosition}
         onUpdateEdge={updateEdgeData}
+        lockedNodes={lockedNodes}
+        onUnlockNode={(id) => updateNodeData(id, { locked: false })}
       />
 
       {showImport && (

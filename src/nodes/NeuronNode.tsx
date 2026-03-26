@@ -14,7 +14,7 @@ const BORDER_ZONE = 12;
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NeuronNodeData;
-  const { label, color, shape, rotation } = nodeData;
+  const { label, color, shape, rotation, locked } = nodeData;
   const connection = useConnection();
   const isConnecting = connection.inProgress;
 
@@ -68,7 +68,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
 
   return (
     <div
-      style={{ position: 'relative' }}
+      style={{ position: 'relative', pointerEvents: locked ? 'none' : undefined, opacity: locked ? 0.55 : undefined }}
       onMouseDown={handleMouseDown}
     >
       {/*
@@ -133,6 +133,23 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           {label}
         </span>
       </div>
+
+      {locked && (
+        <svg
+          width="14" height="14" viewBox="0 0 14 14" fill="none"
+          style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            zIndex: 30,
+            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+            pointerEvents: 'none',
+          }}
+        >
+          <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
+          <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
+        </svg>
+      )}
     </div>
   );
 }

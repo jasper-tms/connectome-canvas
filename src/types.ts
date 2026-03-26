@@ -13,6 +13,7 @@ export interface NeuronNodeData {
   radius?: number;  // for circle nodes, default 35
   width?: number;   // for rectangle nodes, default 90
   height?: number;  // for rectangle nodes, default 44
+  locked?: boolean;
   [key: string]: unknown;
 }
 
@@ -39,6 +40,7 @@ export interface SerializedNode {
   radius?: number;
   width?: number;
   height?: number;
+  locked?: boolean;
 }
 
 export interface SerializedEdge {

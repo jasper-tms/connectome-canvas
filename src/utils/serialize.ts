@@ -16,6 +16,7 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
     if (d.shape === 'circle' && d.radius !== undefined) node.radius = d.radius;
     if (d.shape === 'rectangle' && d.width !== undefined) node.width = d.width;
     if (d.shape === 'rectangle' && d.height !== undefined) node.height = d.height;
+    if (d.locked) node.locked = true;
     return node;
   });
 
@@ -53,6 +54,7 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
     if (n.radius !== undefined) data.radius = n.radius;
     if (n.width !== undefined) data.width = n.width;
     if (n.height !== undefined) data.height = n.height;
+    if (n.locked) data.locked = true;
     return {
       id: n.id,
       type: 'neuron',
