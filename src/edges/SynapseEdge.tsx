@@ -152,8 +152,12 @@ export default function SynapseEdge({
   const baseCY = targetY - arrowLen * Math.sin(arrowAngle);
   const perpX = -Math.sin(arrowAngle);
   const perpY = Math.cos(arrowAngle);
+  // Extend arrow tip slightly past target to ensure it visually reaches the node
+  const arrowTipExtension = 1.5;
+  const arrowTipX = targetX + arrowTipExtension * Math.cos(arrowAngle);
+  const arrowTipY = targetY + arrowTipExtension * Math.sin(arrowAngle);
   const arrowPoints = [
-    `${targetX},${targetY}`,
+    `${arrowTipX},${arrowTipY}`,
     `${baseCX + arrowHalf * perpX},${baseCY + arrowHalf * perpY}`,
     `${baseCX - arrowHalf * perpX},${baseCY - arrowHalf * perpY}`,
   ].join(' ');
