@@ -95,7 +95,9 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: 'translate(-50%, -50%)',
+          transform: shape === 'rectangle'
+            ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
+            : 'translate(-50%, -50%)',
           width: nodeWidth + 16,
           height: nodeHeight + 16,
           borderRadius: shape === 'circle' ? '50%' : 6,
@@ -116,7 +118,9 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: 'translate(-50%, -50%)',
+          transform: shape === 'rectangle'
+            ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
+            : 'translate(-50%, -50%)',
           width: Math.max(0, nodeWidth - 2 * BORDER_ZONE),
           height: Math.max(0, nodeHeight - 2 * BORDER_ZONE),
           borderRadius: shape === 'circle' ? '50%' : 4,
