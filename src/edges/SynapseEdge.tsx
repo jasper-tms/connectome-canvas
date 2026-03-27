@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EdgeLabelRenderer, EdgeProps, useNodes, useReactFlow, useStore } from '@xyflow/react';
-import type { SynapseEdgeData, ControlPoint } from '../types';
+import type { SynapseEdgeData, ControlPoint, GlobalSettings } from '../types';
 import { catmullRomToSvgPath, pointOnSpline, findNearestSegment, buildArcLengthTable, arcLengthToT, type Point } from '../utils/catmullRom';
 import { borderPoint, angleToNode } from '../utils/geometry';
 
@@ -38,9 +38,14 @@ export default function SynapseEdge({
   data,
   selected,
 }: EdgeProps) {
-  const edgeData = data as SynapseEdgeData | undefined;
+  const edgeData = data as (SynapseEdgeData & { globalSettings?: GlobalSettings }) | undefined;
   const controlPoints = edgeData?.controlPoints ?? [];
   const synapseCount = edgeData?.synapseCount ?? 0;
+  const gs = edgeData?.globalSettings;
+  const edgeWidth = gs?.edgeWidthMode === 'proportional'
+    ? Math.max(0.5, Math.min(12, synapseCount * 0.15))
+    : (gs?.fixedEdgeWidth ?? 1.5);
+  const edgeWidthSelected = edgeWidth + 1;
   const onControlPointsChange = edgeData?.onControlPointsChange;
   const onAngleChange = edgeData?.onAngleChange;
 
@@ -125,7 +130,8 @@ export default function SynapseEdge({
   // diverge from the visual approach direction of the curve. Sampling at a
   // point ~arrowLen back aligns the arrowhead with the visible curve leading
   // into it.
-  const arrowLen = 9;
+  const activeWidth = selected ? edgeWidthSelected : edgeWidth;
+  const arrowLen = Math.max(9, activeWidth * 3);
   const arrowBasePoint = (() => {
     if (allPoints.length < 2) return { x: targetX - 1, y: targetY };
     // Binary-search for the t value whose spline point is ~arrowLen from target.
@@ -140,7 +146,7 @@ export default function SynapseEdge({
     return pointOnSpline(allPoints, (lo + hi) / 2);
   })();
   const arrowAngle = Math.atan2(targetY - arrowBasePoint.y, targetX - arrowBasePoint.x);
-  const arrowHalf = 4.5;
+  const arrowHalf = Math.max(4.5, activeWidth * 1.5);
   const arrowColor = selected ? '#6366f1' : '#94a3b8';
   const baseCX = targetX - arrowLen * Math.cos(arrowAngle);
   const baseCY = targetY - arrowLen * Math.sin(arrowAngle);
@@ -288,7 +294,7 @@ export default function SynapseEdge({
         d={pathD}
         fill="none"
         stroke={selected ? '#6366f1' : '#94a3b8'}
-        strokeWidth={selected ? 2.5 : 1.5}
+        strokeWidth={activeWidth}
         style={{ pointerEvents: 'none' }}
       />
 

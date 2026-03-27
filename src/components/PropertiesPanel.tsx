@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { NeuronNodeData, SynapseEdgeData } from '../types';
+import type { NeuronNodeData, SynapseEdgeData, GlobalSettings } from '../types';
 
 interface Props {
   selectedNode: Node | null;
@@ -9,18 +9,58 @@ interface Props {
   onUpdateEdge: (id: string, data: Partial<SynapseEdgeData>) => void;
   lockedNodes: Node[];
   onUnlockNode: (id: string) => void;
+  globalSettings: GlobalSettings;
+  onUpdateGlobalSettings: (settings: GlobalSettings) => void;
 }
 
-export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNode, onUpdateNodePosition, onUpdateEdge, lockedNodes, onUnlockNode }: Props) {
+export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNode, onUpdateNodePosition, onUpdateEdge, lockedNodes, onUnlockNode, globalSettings, onUpdateGlobalSettings }: Props) {
   if (!selectedNode && !selectedEdge) {
     return (
       <div style={panelStyle}>
-        {lockedNodes.length === 0 ? (
-          <p style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', marginTop: 24 }}>
-            Select a node or edge to edit its properties.
-          </p>
-        ) : (
-          <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+        <h3 style={headingStyle}>Settings</h3>
+
+        <Field label="Edge Width">
+          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            {(['fixed', 'proportional'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onUpdateGlobalSettings({ ...globalSettings, edgeWidthMode: mode })}
+                style={{
+                  flex: 1,
+                  padding: '4px 0',
+                  fontSize: 11,
+                  fontWeight: globalSettings.edgeWidthMode === mode ? 700 : 400,
+                  background: globalSettings.edgeWidthMode === mode ? '#6366f1' : '#f8fafc',
+                  color: globalSettings.edgeWidthMode === mode ? '#fff' : '#64748b',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {globalSettings.edgeWidthMode === 'fixed' && (
+          <Field label="Fixed Edge Width">
+            <input
+              type="number"
+              min={0.5}
+              max={10}
+              step={0.5}
+              value={globalSettings.fixedEdgeWidth}
+              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(10, Math.max(0.5, Number(e.target.value))) })}
+            />
+          </Field>
+        )}
+
+        {lockedNodes.length > 0 && (
+          <>
+            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+          </>
         )}
       </div>
     );

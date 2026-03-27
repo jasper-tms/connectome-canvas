@@ -1,8 +1,8 @@
 import type { Node, Edge } from '@xyflow/react';
 import yaml from 'js-yaml';
-import type { NeuronNodeData, SynapseEdgeData, CanvasState, SerializedNode, SerializedEdge } from '../types';
+import type { NeuronNodeData, SynapseEdgeData, CanvasState, SerializedNode, SerializedEdge, GlobalSettings } from '../types';
 
-export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: string): CanvasState {
+export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: string, globalSettings?: GlobalSettings): CanvasState {
   const serializedNodes: SerializedNode[] = nodes.map((n) => {
     const d = n.data as NeuronNodeData;
     const node: SerializedNode = {
@@ -41,7 +41,9 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
     return serialized;
   });
 
-  return { projectName: projectName || 'untitled', nodes: serializedNodes, edges: serializedEdges };
+  const result: CanvasState = { projectName: projectName || 'untitled', nodes: serializedNodes, edges: serializedEdges };
+  if (globalSettings) result.globalSettings = globalSettings;
+  return result;
 }
 
 export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: Edge[] } {

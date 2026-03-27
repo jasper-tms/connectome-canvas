@@ -30,6 +30,11 @@ export interface SynapseEdgeData {
   [key: string]: unknown;
 }
 
+export interface GlobalSettings {
+  edgeWidthMode: 'fixed' | 'proportional';
+  fixedEdgeWidth: number; // stroke width in fixed mode (default 1.5)
+}
+
 // Plain serializable canvas state
 export interface SerializedNode {
   id: string;
@@ -62,4 +67,5 @@ export interface CanvasState {
   projectName?: string;
   nodes: SerializedNode[];
   edges: SerializedEdge[];
+  globalSettings?: GlobalSettings;
 }

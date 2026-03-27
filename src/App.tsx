@@ -23,7 +23,7 @@ import ConnectionLine, { lastConnectionEndPos } from './components/ConnectionLin
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ImportModal from './components/ImportModal';
-import type { NeuronNodeData, SynapseEdgeData, ControlPoint } from './types';
+import type { NeuronNodeData, SynapseEdgeData, ControlPoint, GlobalSettings } from './types';
 import {
   serializeCanvas,
   deserializeCanvas,
@@ -93,6 +93,10 @@ export default function App() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [projectName, setProjectName] = useState('untitled');
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
+    edgeWidthMode: 'fixed',
+    fixedEdgeWidth: 1.5,
+  });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
@@ -158,9 +162,9 @@ export default function App() {
     () =>
       edges.map((e) => ({
         ...e,
-        data: { ...e.data, onControlPointsChange, onLabelPositionChange, onAngleChange },
+        data: { ...e.data, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings },
       })),
-    [edges, onControlPointsChange, onLabelPositionChange, onAngleChange],
+    [edges, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings],
   );
 
   const onSelectionChange = useCallback(({ nodes: sNodes, edges: sEdges }: { nodes: Node[]; edges: Edge[] }) => {
@@ -279,7 +283,7 @@ export default function App() {
   function handleExport() {
     const slug = projectName.trim().replace(/\s+/g, '_') || 'untitled';
     downloadFile(
-      exportAsYaml(serializeCanvas(nodes, edges, projectName)),
+      exportAsYaml(serializeCanvas(nodes, edges, projectName, globalSettings)),
       `connectome-canvas_${slug}.yaml`,
     );
   }
@@ -292,6 +296,7 @@ export default function App() {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     if (state.projectName) setProjectName(state.projectName);
+    if (state.globalSettings) setGlobalSettings(state.globalSettings);
     const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
     idCounter = Math.max(idCounter, ...allIds) + 1;
   }
@@ -385,6 +390,8 @@ export default function App() {
         onUpdateEdge={updateEdgeData}
         lockedNodes={lockedNodes}
         onUnlockNode={(id) => updateNodeData(id, { locked: false })}
+        globalSettings={globalSettings}
+        onUpdateGlobalSettings={setGlobalSettings}
       />
 
       {showImport && (
