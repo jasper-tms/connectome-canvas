@@ -14,8 +14,8 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
       rotation: d.rotation ?? 0,
     };
     if (d.shape === 'circle' && d.radius !== undefined) node.radius = d.radius;
-    if (d.shape === 'rectangle' && d.width !== undefined) node.width = d.width;
-    if (d.shape === 'rectangle' && d.height !== undefined) node.height = d.height;
+    if ((d.shape === 'rectangle' || d.shape === 'arrow') && d.width !== undefined) node.width = d.width;
+    if ((d.shape === 'rectangle' || d.shape === 'arrow') && d.height !== undefined) node.height = d.height;
     if (d.fontSize !== undefined) node.fontSize = d.fontSize;
     if (d.locked) node.locked = true;
     return node;

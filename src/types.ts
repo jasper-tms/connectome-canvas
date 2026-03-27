@@ -1,4 +1,4 @@
-export type NeuronShape = 'circle' | 'rectangle';
+export type NeuronShape = 'circle' | 'rectangle' | 'arrow';
 
 export interface ControlPoint {
   x: number;

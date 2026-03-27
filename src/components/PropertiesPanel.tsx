@@ -19,7 +19,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
       <div style={panelStyle}>
         <h3 style={headingStyle}>Settings</h3>
 
-        <Field label="Edge Width">
+        <Field label="Edge Width Mode">
           <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
             {(['fixed', 'proportional'] as const).map((mode) => (
               <button
@@ -44,7 +44,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
         </Field>
 
         {globalSettings.edgeWidthMode === 'fixed' && (
-          <Field label="Fixed Edge Width">
+          <Field label="Edge Width Value">
             <input
               type="number"
               min={0.5}
@@ -74,7 +74,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
         <Field label="Shape">
           <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-            {(['circle', 'rectangle'] as const).map((s) => (
+            {(['circle', 'rectangle', 'arrow'] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => onUpdateNode(selectedNode.id, { shape: s })}
@@ -167,7 +167,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           </Field>
         )}
 
-        {d.shape === 'rectangle' && (
+        {(d.shape === 'rectangle' || d.shape === 'arrow') && (
           <>
             <Field label="Width">
               <input

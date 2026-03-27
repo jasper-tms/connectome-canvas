@@ -50,6 +50,16 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           justifyContent: 'center',
           position: 'relative',
         }
+      : shape === 'arrow'
+      ? {
+          width: nodeWidth,
+          height: nodeHeight,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          transform: `rotate(${rotation ?? 0}deg)`,
+        }
       : {
           width: nodeWidth,
           height: nodeHeight,
@@ -95,7 +105,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: shape === 'rectangle'
+          transform: (shape === 'rectangle' || shape === 'arrow')
             ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
             : 'translate(-50%, -50%)',
           width: nodeWidth + 16,
@@ -118,7 +128,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           position: 'absolute',
           left: '50%',
           top: '50%',
-          transform: shape === 'rectangle'
+          transform: (shape === 'rectangle' || shape === 'arrow')
             ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
             : 'translate(-50%, -50%)',
           width: Math.max(0, nodeWidth - 2 * BORDER_ZONE),
@@ -130,6 +140,26 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
       />
 
       <div style={shapeStyle}>
+        {shape === 'arrow' && (
+          <svg
+            width={nodeWidth * 1.125}
+            height={nodeHeight}
+            viewBox={`0 0 ${nodeWidth * 1.125} ${nodeHeight}`}
+            style={{
+              position: 'absolute',
+              pointerEvents: 'none',
+            }}
+          >
+            {/* Arrow shape: indent on left edge (concave), point on right edge (convex) */}
+            <polygon
+              points={`0,0 ${nodeWidth},0 ${nodeWidth + nodeWidth / 8},${nodeHeight / 2} ${nodeWidth},${nodeHeight} 0,${nodeHeight} ${nodeWidth / 8},${nodeHeight / 2}`}
+              fill={color + '30'}
+              stroke={outlineColor}
+              strokeWidth={outlineWidth}
+              strokeLinejoin="miter"
+            />
+          </svg>
+        )}
         <span
           style={{
             fontSize: labelFontSize,
@@ -141,8 +171,10 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            transform: shape === 'rectangle' ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
+            transform: (shape === 'rectangle' || shape === 'arrow') ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
             userSelect: 'none',
+            zIndex: 10,
+            position: 'relative',
           }}
         >
           {label}
