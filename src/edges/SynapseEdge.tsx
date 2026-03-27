@@ -118,18 +118,12 @@ export default function SynapseEdge({
     { x: targetX, y: targetY },
   ];
 
-  const pathD = catmullRomToSvgPath(allPoints);
-  const labelU = edgeData?.labelPosition ?? 0.5;
-  const arcTable = buildArcLengthTable(allPoints);
-  const labelPos = pointOnSpline(allPoints, arcLengthToT(arcTable, labelU));
-
-  // Compute arrowhead orientation from the spline tangent at a point roughly
-  // arrowLen pixels before the endpoint. Using t≈1 gives the mathematical
-  // tangent at the tip, but because Catmull-Rom endpoint clamping forces
-  // that tangent toward the last-control-point→target direction, it can
-  // diverge from the visual approach direction of the curve. Sampling at a
-  // point ~arrowLen back aligns the arrowhead with the visible curve leading
-  // into it.
+  // Compute arrowhead geometry first so we can truncate the path at the base.
+  // Using t≈1 gives the mathematical tangent at the tip, but because Catmull-Rom
+  // endpoint clamping forces that tangent toward the last-control-point→target
+  // direction, it can diverge from the visual approach direction of the curve.
+  // Sampling at a point ~arrowLen back aligns the arrowhead with the visible
+  // curve leading into it.
   const activeWidth = selected ? edgeWidthSelected : edgeWidth;
   const arrowLen = Math.max(9, activeWidth * 3);
   const arrowBasePoint = (() => {
@@ -150,10 +144,24 @@ export default function SynapseEdge({
   const arrowColor = selected ? '#6366f1' : '#94a3b8';
   const baseCX = targetX - arrowLen * Math.cos(arrowAngle);
   const baseCY = targetY - arrowLen * Math.sin(arrowAngle);
+
+  const arrowTipExtension = 1.5;
+  // Stop the path just before the arrowhead tip so the stroke doesn't poke out
+  // the sides. The minimum cutoff is where the arrowhead becomes wide enough to
+  // contain the full stroke width: derived from arrowHalf*2*(d/arrowLen) =
+  // activeWidth, which simplifies to d = activeWidth - arrowTipExtension.
+  const pathCutoff = Math.max(0, activeWidth - arrowTipExtension);
+  const pathEndX = targetX - pathCutoff * Math.cos(arrowAngle);
+  const pathEndY = targetY - pathCutoff * Math.sin(arrowAngle);
+  const pathPoints = allPoints.length > 1 && pathCutoff > 0
+    ? [...allPoints.slice(0, -1), { x: pathEndX, y: pathEndY }]
+    : allPoints;
+  const pathD = catmullRomToSvgPath(pathPoints);
+  const labelU = edgeData?.labelPosition ?? 0.5;
+  const arcTable = buildArcLengthTable(allPoints);
+  const labelPos = pointOnSpline(allPoints, arcLengthToT(arcTable, labelU));
   const perpX = -Math.sin(arrowAngle);
   const perpY = Math.cos(arrowAngle);
-  // Extend arrow tip slightly past target to ensure it visually reaches the node
-  const arrowTipExtension = 1.5;
   const arrowTipX = targetX + arrowTipExtension * Math.cos(arrowAngle);
   const arrowTipY = targetY + arrowTipExtension * Math.sin(arrowAngle);
   const arrowPoints = [
