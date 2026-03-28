@@ -43,8 +43,8 @@ export default function SynapseEdge({
   const controlPoints = edgeData?.controlPoints ?? [];
   const synapseCount = edgeData?.synapseCount ?? 0;
   const gs = edgeData?.globalSettings;
-  const edgeWidth = gs?.edgeWidthMode === 'proportional'
-    ? Math.max(0.5, Math.min(12, synapseCount * 0.15))
+  const edgeWidth = gs?.edgeWidthMode === 'weighted'
+    ? Math.max(0.5, (gs?.weightedEdgeWidth ?? 1.5) * synapseCount / 10)
     : (gs?.fixedEdgeWidth ?? 1.5);
   const edgeWidthSelected = edgeWidth + 1;
   const edgeColorMode = gs?.edgeColorMode ?? 'grey';

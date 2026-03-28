@@ -21,7 +21,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
         <Field label="Edge Width Mode">
           <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-            {(['fixed', 'proportional'] as const).map((mode) => (
+            {(['fixed', 'weighted'] as const).map((mode) => (
               <button
                 key={mode}
                 onClick={() => onUpdateGlobalSettings({ ...globalSettings, edgeWidthMode: mode })}
@@ -30,8 +30,8 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
                   padding: '4px 0',
                   fontSize: 11,
                   fontWeight: globalSettings.edgeWidthMode === mode ? 700 : 400,
-                  background: globalSettings.edgeWidthMode === mode ? '#6366f1' : '#f8fafc',
-                  color: globalSettings.edgeWidthMode === mode ? '#fff' : '#64748b',
+                  background: globalSettings.edgeWidthMode === mode ? '#e2e8f0' : '#f8fafc',
+                  color: '#64748b',
                   border: 'none',
                   cursor: 'pointer',
                   textTransform: 'capitalize',
@@ -44,14 +44,27 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
         </Field>
 
         {globalSettings.edgeWidthMode === 'fixed' && (
-          <Field label="Edge Width Value">
+          <Field label="Edge Width: Fixed">
             <input
               type="number"
-              min={0.5}
-              max={10}
-              step={0.5}
+              min={0.1}
+              max={100}
+              step={0.1}
               value={globalSettings.fixedEdgeWidth}
-              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(10, Math.max(0.5, Number(e.target.value))) })}
+              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+            />
+          </Field>
+        )}
+
+        {globalSettings.edgeWidthMode === 'weighted' && (
+          <Field label="Edge Width: Weighted">
+            <input
+              type="number"
+              min={0.1}
+              max={100}
+              step={0.1}
+              value={globalSettings.weightedEdgeWidth}
+              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, weightedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
             />
           </Field>
         )}

@@ -47,8 +47,9 @@ export interface SynapseEdgeData {
 }
 
 export interface GlobalSettings {
-  edgeWidthMode: 'fixed' | 'proportional';
+  edgeWidthMode: 'fixed' | 'weighted';
   fixedEdgeWidth: number; // stroke width in fixed mode (default 1.5)
+  weightedEdgeWidth: number; // multiplier in weighted mode: width = value * synapseCount / 10
   nodeColorMode: NodeColorMode;
   edgeColorMode: EdgeColorMode;
 }

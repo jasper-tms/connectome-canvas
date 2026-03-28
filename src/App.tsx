@@ -97,6 +97,7 @@ export default function App() {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     edgeWidthMode: 'fixed',
     fixedEdgeWidth: 1.5,
+    weightedEdgeWidth: 1.5,
     nodeColorMode: 'manual',
     edgeColorMode: 'grey',
   });
