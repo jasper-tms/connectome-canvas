@@ -1,4 +1,9 @@
 export type NeuronShape = 'circle' | 'rectangle' | 'arrow';
+export type CustomPropertyType = 'string' | 'int' | 'float';
+export interface CustomProperty {
+  type: CustomPropertyType;
+  value: string | number;
+}
 export type Neurotransmitter = 'ACh' | 'GABA' | 'Glut' | 'Other';
 export type NodeColorMode = 'manual' | 'excit/inhib' | 'neurotransmitter';
 export type EdgeColorMode = 'grey' | 'excit/inhib' | 'neurotransmitter';
@@ -31,6 +36,7 @@ export interface NeuronNodeData {
   height?: number;  // for rectangle nodes, default 44
   fontSize?: number; // label text size, default 12
   locked?: boolean;
+  customProperties?: Record<string, CustomProperty>;
   [key: string]: unknown;
 }
 
@@ -68,6 +74,7 @@ export interface SerializedNode {
   height?: number;
   fontSize?: number;
   locked?: boolean;
+  customProperties?: Record<string, CustomProperty>;
 }
 
 export interface SerializedEdge {

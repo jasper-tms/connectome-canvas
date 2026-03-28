@@ -19,6 +19,7 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
     if (d.fontSize !== undefined) node.fontSize = d.fontSize;
     if (d.locked) node.locked = true;
     if (d.neurotransmitter && d.neurotransmitter !== 'Other') node.neurotransmitter = d.neurotransmitter;
+    if (d.customProperties && Object.keys(d.customProperties).length > 0) node.customProperties = d.customProperties;
     return node;
   });
 
@@ -61,6 +62,7 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
     if (n.height !== undefined) data.height = n.height;
     if (n.fontSize !== undefined) data.fontSize = n.fontSize;
     if (n.locked) data.locked = true;
+    if (n.customProperties && Object.keys(n.customProperties).length > 0) data.customProperties = n.customProperties;
     return {
       id: n.id,
       type: 'neuron',

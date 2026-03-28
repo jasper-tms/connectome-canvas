@@ -425,7 +425,7 @@ export default function SynapseEdge({
           onPointerUp={isInteractive ? handleLabelPointerUp : undefined}
           onClick={isInteractive ? handleLabelClick : undefined}
         >
-          {synapseCount > 0 ? synapseCount : '—'}
+          {synapseCount}
         </div>
       </EdgeLabelRenderer>
     </g>

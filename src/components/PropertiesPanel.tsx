@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Node, Edge } from '@xyflow/react';
-import type { NeuronNodeData, SynapseEdgeData, GlobalSettings, Neurotransmitter, NodeColorMode, EdgeColorMode } from '../types';
+import type { NeuronNodeData, SynapseEdgeData, GlobalSettings, Neurotransmitter, NodeColorMode, EdgeColorMode, CustomPropertyType, CustomProperty } from '../types';
 
 interface Props {
   selectedNode: Node | null;
@@ -255,6 +256,11 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{selectedNode.id}</span>
         </Field>
 
+        <CustomProperties
+          properties={d.customProperties ?? {}}
+          onChange={(props) => onUpdateNode(selectedNode.id, { customProperties: props })}
+        />
+
         <button
           onClick={() => onUpdateNode(selectedNode.id, { locked: true })}
           style={{
@@ -431,6 +437,190 @@ function ColorModeButtons({ modes, active, onChange }: { modes: readonly string[
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function CustomProperties({ properties, onChange }: { properties: Record<string, CustomProperty>; onChange: (props: Record<string, CustomProperty>) => void }) {
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState<CustomPropertyType>('string');
+  const [newValue, setNewValue] = useState('');
+
+  const entries = Object.entries(properties);
+
+  function handleAdd() {
+    const name = newName.trim();
+    if (!name || name in properties) return;
+    let value: string | number;
+    if (newType === 'int') {
+      value = parseInt(newValue, 10);
+      if (isNaN(value)) value = 0;
+    } else if (newType === 'float') {
+      value = parseFloat(newValue);
+      if (isNaN(value)) value = 0;
+    } else {
+      value = newValue;
+    }
+    onChange({ ...properties, [name]: { type: newType, value } });
+    setNewName('');
+    setNewType('string');
+    setNewValue('');
+    setAdding(false);
+  }
+
+  function handleValueChange(key: string, raw: string) {
+    const prop = properties[key];
+    let value: string | number;
+    if (prop.type === 'int') {
+      value = parseInt(raw, 10);
+      if (isNaN(value)) value = 0;
+    } else if (prop.type === 'float') {
+      value = parseFloat(raw);
+      if (isNaN(value)) value = 0;
+    } else {
+      value = raw;
+    }
+    onChange({ ...properties, [key]: { ...prop, value } });
+  }
+
+  function handleRemove(key: string) {
+    const next = { ...properties };
+    delete next[key];
+    onChange(next);
+  }
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {entries.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {entries.map(([key, prop]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+              <span style={{ fontSize: 11, color: '#334155', flex: '0 0 auto', maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={key}>
+                {key}
+              </span>
+              <span style={{ fontSize: 9, color: '#94a3b8', flex: '0 0 auto' }}>
+                {prop.type}
+              </span>
+              <input
+                type={prop.type === 'string' ? 'text' : 'number'}
+                step={prop.type === 'float' ? 'any' : undefined}
+                value={prop.value}
+                onChange={(e) => handleValueChange(key, e.target.value)}
+                style={{ flex: 1, minWidth: 0 }}
+              />
+              <button
+                onClick={() => handleRemove(key)}
+                title="Remove property"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  fontSize: 14,
+                  padding: '0 2px',
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <input
+            type="text"
+            placeholder="Property name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
+          />
+          <div style={{ display: 'flex', gap: 0, borderRadius: 4, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            {(['string', 'int', 'float'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setNewType(t)}
+                style={{
+                  flex: 1,
+                  padding: '3px 0',
+                  fontSize: 11,
+                  fontWeight: newType === t ? 700 : 400,
+                  background: newType === t ? '#6366f1' : '#fff',
+                  color: newType === t ? '#fff' : '#64748b',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <input
+            type={newType === 'string' ? 'text' : 'number'}
+            step={newType === 'float' ? 'any' : undefined}
+            placeholder="Value"
+            value={newValue}
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
+          />
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim() || newName.trim() in properties}
+              style={{
+                flex: 1,
+                padding: '4px 0',
+                fontSize: 11,
+                background: '#6366f1',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                opacity: !newName.trim() || newName.trim() in properties ? 0.5 : 1,
+              }}
+            >
+              Add
+            </button>
+            <button
+              onClick={() => { setAdding(false); setNewName(''); setNewValue(''); }}
+              style={{
+                flex: 1,
+                padding: '4px 0',
+                fontSize: 11,
+                background: '#f8fafc',
+                color: '#64748b',
+                border: '1px solid #e2e8f0',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          style={{
+            width: '100%',
+            padding: '5px 0',
+            background: '#f8fafc',
+            color: '#6366f1',
+            border: '1px dashed #c7d2fe',
+            borderRadius: 6,
+            fontSize: 11,
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          + Add Property
+        </button>
+      )}
     </div>
   );
 }
