@@ -239,6 +239,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
             userSelect: 'none',
             zIndex: 10,
             position: 'relative',
+            left: shape === 'arrow' ? nodeWidth / 16 : undefined,
           }}
         >
           {label}
