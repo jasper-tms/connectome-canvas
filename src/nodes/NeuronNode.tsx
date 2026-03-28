@@ -1,5 +1,6 @@
 import { Handle, Position, NodeProps, useConnection, useEdges } from '@xyflow/react';
-import type { NeuronNodeData } from '../types';
+import type { NeuronNodeData, GlobalSettings } from '../types';
+import { ntColor } from '../types';
 
 /**
  * Module-level map that stores the most recent connection-start angle (in degrees)
@@ -13,8 +14,12 @@ export const pendingAngles = new Map<string, number>();
 const BORDER_ZONE = 4;
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
-  const nodeData = data as NeuronNodeData;
-  const { label, color, shape, rotation, locked, fontSize } = nodeData;
+  const nodeData = data as NeuronNodeData & { globalSettings?: GlobalSettings };
+  const { label, color: manualColor, shape, rotation, locked, fontSize, neurotransmitter, globalSettings: gs } = nodeData;
+  const nodeColorMode = gs?.nodeColorMode ?? 'manual';
+  const color = nodeColorMode === 'manual'
+    ? manualColor
+    : ntColor(neurotransmitter ?? 'Other', nodeColorMode);
   const connection = useConnection();
   const isConnecting = connection.inProgress;
   const edges = useEdges();

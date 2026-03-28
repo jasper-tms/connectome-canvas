@@ -1,4 +1,19 @@
 export type NeuronShape = 'circle' | 'rectangle' | 'arrow';
+export type Neurotransmitter = 'ACh' | 'GABA' | 'Glut' | 'Other';
+export type NodeColorMode = 'manual' | 'excit/inhib' | 'neurotransmitter';
+export type EdgeColorMode = 'grey' | 'excit/inhib' | 'neurotransmitter';
+
+export function ntColor(nt: Neurotransmitter, mode: 'excit/inhib' | 'neurotransmitter'): string {
+  if (mode === 'excit/inhib') {
+    return nt === 'ACh' ? '#ef4444' : nt === 'Other' ? '#94a3b8' : '#3b82f6';
+  }
+  switch (nt) {
+    case 'ACh': return '#ef4444';
+    case 'GABA': return '#3b82f6';
+    case 'Glut': return '#22c55e';
+    default: return '#94a3b8';
+  }
+}
 
 export interface ControlPoint {
   x: number;
@@ -9,6 +24,7 @@ export interface NeuronNodeData {
   label: string;
   color: string;
   shape: NeuronShape;
+  neurotransmitter: Neurotransmitter;
   rotation: number; // degrees, used for rectangle orientation
   radius?: number;  // for circle nodes, default 35
   width?: number;   // for rectangle nodes, default 90
@@ -33,6 +49,8 @@ export interface SynapseEdgeData {
 export interface GlobalSettings {
   edgeWidthMode: 'fixed' | 'proportional';
   fixedEdgeWidth: number; // stroke width in fixed mode (default 1.5)
+  nodeColorMode: NodeColorMode;
+  edgeColorMode: EdgeColorMode;
 }
 
 // Plain serializable canvas state
@@ -42,6 +60,7 @@ export interface SerializedNode {
   position: { x: number; y: number };
   label: string;
   color: string;
+  neurotransmitter?: Neurotransmitter;
   rotation: number;
   radius?: number;
   width?: number;

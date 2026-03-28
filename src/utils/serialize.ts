@@ -18,6 +18,7 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
     if ((d.shape === 'rectangle' || d.shape === 'arrow') && d.height !== undefined) node.height = d.height;
     if (d.fontSize !== undefined) node.fontSize = d.fontSize;
     if (d.locked) node.locked = true;
+    if (d.neurotransmitter && d.neurotransmitter !== 'Other') node.neurotransmitter = d.neurotransmitter;
     return node;
   });
 
@@ -52,6 +53,7 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
       label: n.label,
       color: n.color,
       shape: n.shape,
+      neurotransmitter: n.neurotransmitter ?? 'Other',
       rotation: n.rotation ?? 0,
     };
     if (n.radius !== undefined) data.radius = n.radius;

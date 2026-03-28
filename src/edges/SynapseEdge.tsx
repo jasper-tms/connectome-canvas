@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EdgeLabelRenderer, EdgeProps, useNodes, useReactFlow, useStore } from '@xyflow/react';
-import type { SynapseEdgeData, ControlPoint, GlobalSettings } from '../types';
+import type { SynapseEdgeData, ControlPoint, GlobalSettings, Neurotransmitter } from '../types';
+import { ntColor } from '../types';
 import { catmullRomToSvgPath, pointOnSpline, findNearestSegment, buildArcLengthTable, arcLengthToT, type Point } from '../utils/catmullRom';
 import { borderPoint, angleToNode } from '../utils/geometry';
 
@@ -38,7 +39,7 @@ export default function SynapseEdge({
   data,
   selected,
 }: EdgeProps) {
-  const edgeData = data as (SynapseEdgeData & { globalSettings?: GlobalSettings }) | undefined;
+  const edgeData = data as (SynapseEdgeData & { globalSettings?: GlobalSettings; sourceNeurotransmitter?: Neurotransmitter }) | undefined;
   const controlPoints = edgeData?.controlPoints ?? [];
   const synapseCount = edgeData?.synapseCount ?? 0;
   const gs = edgeData?.globalSettings;
@@ -46,6 +47,11 @@ export default function SynapseEdge({
     ? Math.max(0.5, Math.min(12, synapseCount * 0.15))
     : (gs?.fixedEdgeWidth ?? 1.5);
   const edgeWidthSelected = edgeWidth + 1;
+  const edgeColorMode = gs?.edgeColorMode ?? 'grey';
+  const sourceNt = edgeData?.sourceNeurotransmitter ?? 'Other';
+  const baseEdgeColor = edgeColorMode === 'grey'
+    ? '#94a3b8'
+    : ntColor(sourceNt, edgeColorMode);
   const onControlPointsChange = edgeData?.onControlPointsChange;
   const onAngleChange = edgeData?.onAngleChange;
 
@@ -141,7 +147,7 @@ export default function SynapseEdge({
   })();
   const arrowAngle = Math.atan2(targetY - arrowBasePoint.y, targetX - arrowBasePoint.x);
   const arrowHalf = Math.max(4.5, activeWidth * 1.5);
-  const arrowColor = selected ? '#6366f1' : '#94a3b8';
+  const arrowColor = selected ? '#6366f1' : baseEdgeColor;
   const baseCX = targetX - arrowLen * Math.cos(arrowAngle);
   const baseCY = targetY - arrowLen * Math.sin(arrowAngle);
 
@@ -305,7 +311,7 @@ export default function SynapseEdge({
       <path
         d={pathD}
         fill="none"
-        stroke={selected ? '#6366f1' : '#94a3b8'}
+        stroke={selected ? '#6366f1' : baseEdgeColor}
         strokeWidth={activeWidth}
         style={{ pointerEvents: 'none' }}
       />

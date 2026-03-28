@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { NeuronNodeData, SynapseEdgeData, GlobalSettings } from '../types';
+import type { NeuronNodeData, SynapseEdgeData, GlobalSettings, Neurotransmitter, NodeColorMode, EdgeColorMode } from '../types';
 
 interface Props {
   selectedNode: Node | null;
@@ -55,6 +55,22 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
             />
           </Field>
         )}
+
+        <Field label="Node Color">
+          <ColorModeButtons
+            modes={COLOR_MODE_OPTIONS}
+            active={globalSettings.nodeColorMode}
+            onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, nodeColorMode: mode as NodeColorMode })}
+          />
+        </Field>
+
+        <Field label="Edge Color">
+          <ColorModeButtons
+            modes={EDGE_COLOR_MODE_OPTIONS}
+            active={globalSettings.edgeColorMode}
+            onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, edgeColorMode: mode as EdgeColorMode })}
+          />
+        </Field>
 
         {lockedNodes.length > 0 && (
           <>
@@ -113,6 +129,26 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
             value={d.fontSize ?? 12}
             onChange={(e) => onUpdateNode(selectedNode.id, { fontSize: Math.min(48, Math.max(8, Number(e.target.value))) })}
           />
+        </Field>
+
+        <Field label="Neurotransmitter">
+          <select
+            value={d.neurotransmitter ?? 'Other'}
+            onChange={(e) => onUpdateNode(selectedNode.id, { neurotransmitter: e.target.value as Neurotransmitter })}
+            style={{
+              width: '100%',
+              padding: '4px 6px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              color: '#334155',
+            }}
+          >
+            {(['ACh', 'GABA', 'Glut', 'Other'] as const).map((nt) => (
+              <option key={nt} value={nt}>{nt}</option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Color">
@@ -323,7 +359,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const panelStyle: React.CSSProperties = {
-  width: 220,
+  width: 260,
   position: 'absolute',
   top: 16,
   right: 16,
@@ -343,6 +379,48 @@ const headingStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
 };
+
+function colorModeLabel(mode: string): React.ReactNode {
+  switch (mode) {
+    case 'excit/inhib':
+      return <><span style={{ color: '#ef4444' }}>Excit</span>/<span style={{ color: '#3b82f6' }}>Inhib</span></>;
+    case 'neurotransmitter':
+      return <><span style={{ color: '#ef4444' }}>ACh</span>/<span style={{ color: '#3b82f6' }}>GABA</span>/<span style={{ color: '#22c55e' }}>Glu</span></>;
+    default:
+      return mode.charAt(0).toUpperCase() + mode.slice(1);
+  }
+}
+
+const COLOR_MODE_OPTIONS = ['manual', 'excit/inhib', 'neurotransmitter'] as const;
+const EDGE_COLOR_MODE_OPTIONS = ['grey', 'excit/inhib', 'neurotransmitter'] as const;
+
+function ColorModeButtons({ modes, active, onChange }: { modes: readonly string[]; active: string; onChange: (mode: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+      {modes.map((mode) => {
+        const isActive = active === mode;
+        return (
+          <button
+            key={mode}
+            onClick={() => onChange(mode)}
+            style={{
+              flex: 1,
+              padding: '4px 0',
+              fontSize: 10,
+              fontWeight: isActive ? 700 : 400,
+              background: isActive ? '#e2e8f0' : '#f8fafc',
+              color: '#64748b',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {colorModeLabel(mode)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function LockedNodesList({ lockedNodes, onUnlockNode }: { lockedNodes: Node[]; onUnlockNode: (id: string) => void }) {
   return (

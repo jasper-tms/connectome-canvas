@@ -23,7 +23,8 @@ import ConnectionLine, { lastConnectionEndPos } from './components/ConnectionLin
 import Toolbar from './components/Toolbar';
 import PropertiesPanel from './components/PropertiesPanel';
 import ImportModal from './components/ImportModal';
-import type { NeuronNodeData, SynapseEdgeData, ControlPoint, GlobalSettings } from './types';
+import type { NeuronNodeData, SynapseEdgeData, ControlPoint, GlobalSettings, Neurotransmitter } from './types';
+import { ntColor } from './types';
 import {
   serializeCanvas,
   deserializeCanvas,
@@ -51,19 +52,19 @@ const INITIAL_NODES: Node[] = [
     id: nextId(),
     type: 'neuron',
     position: { x: 200, y: 200 },
-    data: { label: 'AVAL', color: '#6ee7b7', shape: 'circle', rotation: 0 } satisfies NeuronNodeData,
+    data: { label: 'AVAL', color: '#6ee7b7', shape: 'circle', neurotransmitter: 'Other', rotation: 0 } satisfies NeuronNodeData,
   },
   {
     id: nextId(),
     type: 'neuron',
     position: { x: 420, y: 200 },
-    data: { label: 'AVAR', color: '#7c8cff', shape: 'circle', rotation: 0 } satisfies NeuronNodeData,
+    data: { label: 'AVAR', color: '#7c8cff', shape: 'circle', neurotransmitter: 'Other', rotation: 0 } satisfies NeuronNodeData,
   },
   {
     id: nextId(),
     type: 'neuron',
     position: { x: 310, y: 340 },
-    data: { label: 'DB01', color: '#f9a8d4', shape: 'rectangle', rotation: 15 } satisfies NeuronNodeData,
+    data: { label: 'DB01', color: '#f9a8d4', shape: 'rectangle', neurotransmitter: 'Other', rotation: 15 } satisfies NeuronNodeData,
   },
 ];
 
@@ -96,6 +97,8 @@ export default function App() {
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
     edgeWidthMode: 'fixed',
     fixedEdgeWidth: 1.5,
+    nodeColorMode: 'manual',
+    edgeColorMode: 'grey',
   });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
@@ -107,11 +110,12 @@ export default function App() {
   const interactiveNodes = useMemo(
     () => nodes.map((n) => {
       const locked = !!(n.data as NeuronNodeData).locked;
+      const withSettings = { ...n, data: { ...n.data, globalSettings } };
       return locked
-        ? { ...n, selectable: false, draggable: false, connectable: false }
-        : n;
+        ? { ...withSettings, selectable: false, draggable: false, connectable: false }
+        : withSettings;
     }),
-    [nodes],
+    [nodes, globalSettings],
   );
 
   const lockedNodes = useMemo(
@@ -160,11 +164,15 @@ export default function App() {
   // Inject the callbacks into every edge's data
   const enrichedEdges = useMemo(
     () =>
-      edges.map((e) => ({
-        ...e,
-        data: { ...e.data, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings },
-      })),
-    [edges, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings],
+      edges.map((e) => {
+        const srcNode = nodes.find((n) => n.id === e.source);
+        const sourceNeurotransmitter: Neurotransmitter = (srcNode?.data as NeuronNodeData)?.neurotransmitter ?? 'Other';
+        return {
+          ...e,
+          data: { ...e.data, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings, sourceNeurotransmitter },
+        };
+      }),
+    [edges, nodes, onControlPointsChange, onLabelPositionChange, onAngleChange, globalSettings],
   );
 
   const onSelectionChange = useCallback(({ nodes: sNodes, edges: sEdges }: { nodes: Node[]; edges: Edge[] }) => {
@@ -232,7 +240,7 @@ export default function App() {
       id,
       type: 'neuron',
       position: { x: 200 + Math.random() * 200, y: 200 + Math.random() * 200 },
-      data: { label: `N${id}`, color, shape, rotation: 0 } satisfies NeuronNodeData,
+      data: { label: `N${id}`, color, shape, neurotransmitter: 'Other', rotation: 0 } satisfies NeuronNodeData,
     };
     setNodes((nds) => [...nds, node]);
   }
@@ -365,7 +373,11 @@ export default function App() {
               border: '1px solid #e2e8f0',
               borderRadius: 8,
             }}
-            nodeColor={(n) => ((n.data as NeuronNodeData).color ?? '#94a3b8')}
+            nodeColor={(n) => {
+              const d = n.data as NeuronNodeData;
+              if (globalSettings.nodeColorMode === 'manual') return d.color ?? '#94a3b8';
+              return ntColor(d.neurotransmitter ?? 'Other', globalSettings.nodeColorMode);
+            }}
             maskColor="#ffffff80"
           />
         </ReactFlow>
