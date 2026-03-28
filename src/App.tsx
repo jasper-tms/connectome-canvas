@@ -234,7 +234,7 @@ export default function App() {
     [setEdges, nodes],
   );
 
-  function addNode(shape: 'circle' | 'rectangle') {
+  function addNode(shape: 'circle' | 'rectangle' | 'arrow') {
     const id = nextId();
     const color = nextColor();
     const node: Node = {
@@ -389,8 +389,7 @@ export default function App() {
       <Toolbar
         projectName={projectName}
         onProjectNameChange={setProjectName}
-        onAddCircle={() => addNode('circle')}
-        onAddRect={() => addNode('rectangle')}
+        onAddNode={addNode}
         onDeleteSelected={deleteSelected}
         hasSelection={hasSelection}
         onExport={handleExport}

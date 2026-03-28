@@ -1,8 +1,10 @@
+import { useState } from 'react';
+import type { NeuronShape } from '../types';
+
 interface ToolbarProps {
   projectName: string;
   onProjectNameChange: (name: string) => void;
-  onAddCircle: () => void;
-  onAddRect: () => void;
+  onAddNode: (shape: NeuronShape) => void;
   onDeleteSelected: () => void;
   hasSelection: boolean;
   onExport: () => void;
@@ -12,13 +14,15 @@ interface ToolbarProps {
 export default function Toolbar({
   projectName,
   onProjectNameChange,
-  onAddCircle,
-  onAddRect,
+  onAddNode,
   onDeleteSelected,
   hasSelection,
   onExport,
   onImport,
 }: ToolbarProps) {
+  const [labelHover, setLabelHover] = useState(false);
+  const [iconHover, setIconHover] = useState<NeuronShape | null>(null);
+
   return (
     <div style={{
       position: 'absolute',
@@ -48,19 +52,67 @@ export default function Toolbar({
 
         <div style={{ width: 1, height: 20, background: '#e2e8f0', margin: '0 4px' }} />
 
-        <button onClick={onAddCircle} title="Add circle neuron" style={btnStyle('#f0f4ff')}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 5 }}>
-            <circle cx="8" cy="8" r="6" stroke="#6366f1" strokeWidth="2" />
-          </svg>
-          Circle
-        </button>
-
-        <button onClick={onAddRect} title="Add rectangle neuron" style={btnStyle('#f0f4ff')}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ verticalAlign: 'middle', marginRight: 5 }}>
-            <rect x="2" y="5" width="12" height="7" rx="1.5" stroke="#6366f1" strokeWidth="2" />
-          </svg>
-          Rect
-        </button>
+        {/* New Node label + shape icons */}
+        <div
+          style={{ display: 'inline-flex', alignItems: 'stretch', gap: 0, borderRadius: 4 }}
+          onMouseLeave={() => { setLabelHover(false); setIconHover(null); }}
+        >
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 500,
+              color: '#334155',
+              cursor: 'default',
+              userSelect: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              paddingRight: 2,
+            }}
+            onMouseEnter={() => { setLabelHover(true); setIconHover(null); }}
+          >
+            New Node:
+          </span>
+          {([
+            { shape: 'circle' as NeuronShape, title: 'Add circle neuron', icon: (highlighted: boolean) => (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <circle cx="9" cy="9" r="6" stroke={highlighted ? '#4338ca' : '#94a3b8'} strokeWidth={highlighted ? 2.5 : 1.5} />
+              </svg>
+            )},
+            { shape: 'rectangle' as NeuronShape, title: 'Add rectangle neuron', icon: (highlighted: boolean) => (
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="2.5" y="5" width="13" height="8" rx="1.5" stroke={highlighted ? '#4338ca' : '#94a3b8'} strokeWidth={highlighted ? 2.5 : 1.5} />
+              </svg>
+            )},
+            { shape: 'arrow' as NeuronShape, title: 'Add arrow neuron', icon: (highlighted: boolean) => (
+              <svg width="20" height="18" viewBox="0 0 20 18" fill="none">
+                <path d="M2 3 L13 3 L17 9 L13 15 L2 15 L6 9 Z" stroke={highlighted ? '#4338ca' : '#94a3b8'} strokeWidth={highlighted ? 2.5 : 1.5} strokeLinejoin="round" fill="none" />
+              </svg>
+            )},
+          ]).map(({ shape, title, icon }) => {
+            const highlighted = labelHover || iconHover === shape;
+            return (
+              <button
+                key={shape}
+                onClick={() => onAddNode(shape)}
+                title={title}
+                onMouseEnter={() => { setIconHover(shape); setLabelHover(false); }}
+                style={{
+                  background: highlighted ? '#eef2ff' : 'transparent',
+                  border: 'none',
+                  padding: '4px 3px',
+                  margin: 0,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 4,
+                  transition: 'background 0.1s',
+                }}
+              >
+                {icon(highlighted)}
+              </button>
+            );
+          })}
+        </div>
 
         <button
           onClick={onDeleteSelected}
