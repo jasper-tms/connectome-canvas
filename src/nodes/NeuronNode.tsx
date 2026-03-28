@@ -206,18 +206,20 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
         {shape === 'arrow' && (
           <svg
             width={nodeWidth * 1.125 + outlineWidth}
-            height={nodeHeight + outlineWidth}
-            viewBox={`${-outlineWidth / 2} ${-outlineWidth / 2} ${nodeWidth * 1.125 + outlineWidth} ${nodeHeight + outlineWidth}`}
+            height={nodeHeight}
+            viewBox={`${-outlineWidth / 2} 0 ${nodeWidth * 1.125 + outlineWidth} ${nodeHeight}`}
             style={{
               position: 'absolute',
               left: -outlineWidth / 2,
-              top: -outlineWidth / 2,
+              top: 0,
               pointerEvents: 'none',
             }}
           >
             {/* Arrow shape: indent on left edge (concave), point on right edge (convex) */}
+            {/* Path is inset by outlineWidth/2 top+bottom so the stroke stays within [0, nodeHeight] */}
             <path
-              d={arrowSvgPath(nodeWidth, nodeHeight)}
+              d={arrowSvgPath(nodeWidth, nodeHeight - outlineWidth)}
+              transform={`translate(0, ${outlineWidth / 2})`}
               fill={color + '30'}
               stroke={outlineColor}
               strokeWidth={outlineWidth}
