@@ -88,14 +88,24 @@ export default function SynapseEdge({
   const targetX = targetPt.x;
   const targetY = targetPt.y;
 
-  // Deselect the control point when the user clicks anywhere outside a control point.
+  // Deselect control point on click-without-drag (≤1 px movement), matching
+  // ReactFlow's node/edge deselection behaviour.
   useEffect(() => {
-    const handleWindowPointerDown = () => {
-      setSelectedCp(null);
+    let downPos: { x: number; y: number } | null = null;
+    const onPointerDown = (e: PointerEvent) => {
+      downPos = { x: e.clientX, y: e.clientY };
     };
-    window.addEventListener('pointerdown', handleWindowPointerDown);
+    const onClick = (e: MouseEvent) => {
+      if (downPos && Math.abs(e.clientX - downPos.x) <= 1 && Math.abs(e.clientY - downPos.y) <= 1) {
+        setSelectedCp(null);
+      }
+      downPos = null;
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('click', onClick);
     return () => {
-      window.removeEventListener('pointerdown', handleWindowPointerDown);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('click', onClick);
     };
   }, []);
 
@@ -191,7 +201,6 @@ export default function SynapseEdge({
     e.stopPropagation();
     e.preventDefault();
     (e.target as Element).setPointerCapture(e.pointerId);
-    setSelectedCp(cpIndex);
     setDragState({ index: cpIndex, points: [...controlPoints] });
   }, [controlPoints, id, onControlPointsChange]);
 
@@ -213,6 +222,7 @@ export default function SynapseEdge({
     e.stopPropagation();
     (e.target as Element).releasePointerCapture(e.pointerId);
     onControlPointsChange?.(id, dragState.points);
+    setSelectedCp(dragState.index);
     setDragState(null);
   }, [dragState, id, onControlPointsChange]);
 
