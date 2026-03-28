@@ -354,6 +354,8 @@ export default function App() {
           proOptions={{ hideAttribution: false }}
           style={{ background: '#ffffff' }}
           deleteKeyCode={null}
+          onDoubleClick={(e) => e.preventDefault()}
+          zoomOnDoubleClick={false}
         >
           <Background
             variant={BackgroundVariant.Dots}
