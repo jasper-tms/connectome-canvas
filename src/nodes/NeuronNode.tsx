@@ -1,6 +1,7 @@
 import { Handle, Position, NodeProps, useConnection, useEdges } from '@xyflow/react';
 import type { NeuronNodeData, GlobalSettings } from '../types';
 import { ntColor } from '../types';
+import { arrowVertices, offsetPolygon } from '../utils/geometry';
 
 /**
  * Module-level map that stores the most recent connection-start angle (in degrees)
@@ -12,6 +13,58 @@ import { ntColor } from '../types';
 export const pendingAngles = new Map<string, number>();
 
 const BORDER_ZONE = 4;
+const ARROW_CORNER_RADIUS = 6;
+
+function arrowSvgPath(W: number, H: number, r: number = ARROW_CORNER_RADIUS): string {
+  const indent = W / 8;
+  const verts = [
+    { x: 0, y: 0 },
+    { x: W, y: 0 },
+    { x: W + indent, y: H / 2 },
+    { x: W, y: H },
+    { x: 0, y: H },
+    { x: indent, y: H / 2 },
+  ];
+  const n = verts.length;
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const prev = verts[(i - 1 + n) % n];
+    const curr = verts[i];
+    const next = verts[(i + 1) % n];
+    const toPrevLen = Math.hypot(prev.x - curr.x, prev.y - curr.y);
+    const toNextLen = Math.hypot(next.x - curr.x, next.y - curr.y);
+    const er = Math.min(r, toPrevLen / 3, toNextLen / 3);
+    const sx = curr.x + ((prev.x - curr.x) / toPrevLen) * er;
+    const sy = curr.y + ((prev.y - curr.y) / toPrevLen) * er;
+    const ex = curr.x + ((next.x - curr.x) / toNextLen) * er;
+    const ey = curr.y + ((next.y - curr.y) / toNextLen) * er;
+    d += i === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`;
+    d += ` Q ${curr.x} ${curr.y} ${ex} ${ey}`;
+  }
+  return d + ' Z';
+}
+
+function arrowClipData(
+  nodeWidth: number,
+  nodeHeight: number,
+  offset: number,
+): { clipPath: string; width: number; height: number } {
+  const halfW = nodeWidth / 2;
+  const halfH = nodeHeight / 2;
+  const verts = arrowVertices(halfW, halfH);
+  const poly = offset !== 0 ? offsetPolygon(verts, offset) : verts;
+  let maxAbsX = 0, maxAbsY = 0;
+  for (const v of poly) {
+    maxAbsX = Math.max(maxAbsX, Math.abs(v.x));
+    maxAbsY = Math.max(maxAbsY, Math.abs(v.y));
+  }
+  const elemW = maxAbsX * 2 + 2;
+  const elemH = maxAbsY * 2 + 2;
+  const pts = poly.map(v =>
+    `${((v.x + elemW / 2) / elemW * 100).toFixed(2)}% ${((v.y + elemH / 2) / elemH * 100).toFixed(2)}%`
+  );
+  return { clipPath: `polygon(${pts.join(', ')})`, width: elemW, height: elemH };
+}
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NeuronNodeData & { globalSettings?: GlobalSettings };
@@ -41,6 +94,9 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
 
   const nodeWidth = shape === 'circle' ? radius * 2 : rectWidth;
   const nodeHeight = shape === 'circle' ? radius * 2 : rectHeight;
+
+  const arrowHandle = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, -8) : null;
+  const arrowInterior = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, BORDER_ZONE) : null;
 
   const shapeStyle: React.CSSProperties =
     shape === 'circle'
@@ -113,9 +169,10 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           transform: (shape === 'rectangle' || shape === 'arrow')
             ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
             : 'translate(-50%, -50%)',
-          width: nodeWidth + 16,
-          height: nodeHeight + 16,
-          borderRadius: shape === 'circle' ? '50%' : 6,
+          width: arrowHandle ? arrowHandle.width : nodeWidth + 16,
+          height: arrowHandle ? arrowHandle.height : nodeHeight + 16,
+          borderRadius: shape === 'circle' ? '50%' : shape === 'arrow' ? 0 : 6,
+          clipPath: arrowHandle?.clipPath,
           background: 'transparent',
           border: isConnecting && isValidTarget
             ? `2px dashed ${isConnectionTarget ? color : color + '88'}`
@@ -136,9 +193,10 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           transform: (shape === 'rectangle' || shape === 'arrow')
             ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
             : 'translate(-50%, -50%)',
-          width: Math.max(0, nodeWidth - 2 * BORDER_ZONE),
-          height: Math.max(0, nodeHeight - 2 * BORDER_ZONE),
-          borderRadius: shape === 'circle' ? '50%' : 4,
+          width: arrowInterior ? arrowInterior.width : Math.max(0, nodeWidth - 2 * BORDER_ZONE),
+          height: arrowInterior ? arrowInterior.height : Math.max(0, nodeHeight - 2 * BORDER_ZONE),
+          borderRadius: shape === 'circle' ? '50%' : shape === 'arrow' ? 0 : 4,
+          clipPath: arrowInterior?.clipPath,
           background: 'transparent',
           zIndex: 20,
         }}
@@ -147,21 +205,22 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
       <div style={shapeStyle}>
         {shape === 'arrow' && (
           <svg
-            width={nodeWidth * 1.125}
-            height={nodeHeight}
-            viewBox={`0 0 ${nodeWidth * 1.125} ${nodeHeight}`}
+            width={nodeWidth * 1.125 + outlineWidth}
+            height={nodeHeight + outlineWidth}
+            viewBox={`${-outlineWidth / 2} ${-outlineWidth / 2} ${nodeWidth * 1.125 + outlineWidth} ${nodeHeight + outlineWidth}`}
             style={{
               position: 'absolute',
+              left: -outlineWidth / 2,
+              top: -outlineWidth / 2,
               pointerEvents: 'none',
             }}
           >
             {/* Arrow shape: indent on left edge (concave), point on right edge (convex) */}
-            <polygon
-              points={`0,0 ${nodeWidth},0 ${nodeWidth + nodeWidth / 8},${nodeHeight / 2} ${nodeWidth},${nodeHeight} 0,${nodeHeight} ${nodeWidth / 8},${nodeHeight / 2}`}
+            <path
+              d={arrowSvgPath(nodeWidth, nodeHeight)}
               fill={color + '30'}
               stroke={outlineColor}
               strokeWidth={outlineWidth}
-              strokeLinejoin="miter"
             />
           </svg>
         )}
