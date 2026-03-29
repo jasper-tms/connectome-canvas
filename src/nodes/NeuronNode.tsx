@@ -68,7 +68,7 @@ function arrowClipData(
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NeuronNodeData & { globalSettings?: GlobalSettings };
-  const { label, color: manualColor, shape, rotation, locked, fontSize, neurotransmitter, globalSettings: gs } = nodeData;
+  const { label, color: manualColor, shape, rotation, rotateLabel, locked, fontSize, neurotransmitter, globalSettings: gs } = nodeData;
   const nodeColorMode = gs?.nodeColorMode ?? 'manual';
   const color = nodeColorMode === 'manual'
     ? manualColor
@@ -237,7 +237,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            transform: (shape === 'rectangle' || shape === 'arrow') ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
+            transform: (shape === 'rectangle' || shape === 'arrow') && !rotateLabel ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
             userSelect: 'none',
             zIndex: 10,
             position: 'relative',

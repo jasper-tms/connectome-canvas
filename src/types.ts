@@ -31,6 +31,7 @@ export interface NeuronNodeData {
   shape: NeuronShape;
   neurotransmitter: Neurotransmitter;
   rotation: number; // degrees, used for rectangle orientation
+  rotateLabel?: boolean; // when true, rotate the text label along with the shape
   radius?: number;  // for circle nodes, default 35
   width?: number;   // for rectangle nodes, default 90
   height?: number;  // for rectangle nodes, default 44
@@ -69,6 +70,7 @@ export interface SerializedNode {
   color: string;
   neurotransmitter?: Neurotransmitter;
   rotation: number;
+  rotateLabel?: boolean;
   radius?: number;
   width?: number;
   height?: number;

@@ -100,7 +100,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
     const d = selectedNode.data as NeuronNodeData;
     return (
       <div style={panelStyle}>
-        <h3 style={headingStyle}>Node</h3>
+        <h3 style={headingStyle}>Node {selectedNode.id}</h3>
 
         <Field label="Shape">
           <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
@@ -249,12 +249,19 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
                 onChange={(e) => onUpdateNode(selectedNode.id, { rotation: Number(e.target.value) })}
               />
             </Field>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={d.rotateLabel ?? false}
+                  onChange={(e) => onUpdateNode(selectedNode.id, { rotateLabel: e.target.checked })}
+                />
+                <span style={{ fontSize: 11, color: '#64748b' }}>Rotate label</span>
+              </label>
+            </div>
           </>
         )}
-
-        <Field label="ID">
-          <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>{selectedNode.id}</span>
-        </Field>
 
         <CustomProperties
           properties={d.customProperties ?? {}}
