@@ -20,7 +20,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
   if (!selectedNode && !selectedEdge) {
     return (
-      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, paddingBottom: collapsed ? 16 : 2, transition: 'width 0.2s ease, padding-bottom 0.2s ease' }}>
         <PanelHeader title="Settings" collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
         <CollapsibleContent collapsed={collapsed}>
@@ -104,7 +104,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
   if (selectedNode) {
     const d = selectedNode.data as NeuronNodeData;
     return (
-      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, paddingBottom: collapsed ? 16 : 2, transition: 'width 0.2s ease, padding-bottom 0.2s ease' }}>
         <PanelHeader title={`Node ${selectedNode.id}`} collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
         <CollapsibleContent collapsed={collapsed}>
@@ -315,7 +315,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
     const controlPointCount = d?.controlPoints?.length ?? 0;
 
     return (
-      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, paddingBottom: collapsed ? 16 : 2, transition: 'width 0.2s ease, padding-bottom 0.2s ease' }}>
         <PanelHeader title="Edge" collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
         <CollapsibleContent collapsed={collapsed}>
@@ -402,7 +402,7 @@ const panelStyle: React.CSSProperties = {
   background: '#ffffff',
   border: '1px solid #e2e8f0',
   borderRadius: 10,
-  padding: 16,
+  padding: '16px 16px 2px',
   boxShadow: '0 2px 12px #00000018',
 };
 
@@ -472,25 +472,16 @@ function PanelHeader({ title, collapsed, caretHover, onToggle, onCaretHover }: {
 }
 
 function CollapsibleContent({ collapsed, children }: { collapsed: boolean; children: React.ReactNode }) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number | undefined>(undefined);
-
-  useLayoutEffect(() => {
-    if (contentRef.current) {
-      setHeight(contentRef.current.scrollHeight);
-    }
-  });
-
   return (
     <div
       style={{
-        maxHeight: collapsed ? 0 : height,
+        display: 'grid',
+        gridTemplateRows: collapsed ? '0fr' : '1fr',
         opacity: collapsed ? 0 : 1,
-        overflow: 'hidden',
-        transition: 'max-height 0.2s ease, opacity 0.2s ease',
+        transition: 'grid-template-rows 0.2s ease, opacity 0.2s ease',
       }}
     >
-      <div ref={contentRef}>
+      <div style={{ overflow: 'hidden' }}>
         {children}
       </div>
     </div>
