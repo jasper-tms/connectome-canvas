@@ -1,15 +1,28 @@
 # Connectome Canvas
 
-A browser-based canvas for building connectome diagrams. Place neurons, draw synaptic connections between them, annotate connection weights, and save/load your work as YAML.
+A browser-based canvas for building connectome diagrams. Place neurons, draw synaptic connections between them, set connection weights, and save/load your work via state-encoding URLs.
+
+Preview (currently on EPFL network only): https://upramdyapc1.epfl.ch/canvas
 
 ## Running
 
+### Dev version
 ```bash
 npm install
 npm run dev
 ```
 
 Then open http://localhost:5173.
+
+### Production version
+While logged into phelps@upramdyapc1.epfl.ch, run:
+```bash
+npm install
+npm run build
+```
+
+This creates a `dist/` folder with static files, and nginx is configured to serve them at https://upramdyapc1.epfl.ch/canvas without any further steps.
+
 
 ## Usage
 
