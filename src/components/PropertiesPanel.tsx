@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { NeuronNodeData, SynapseEdgeData, GlobalSettings, Neurotransmitter, NodeColorMode, EdgeColorMode, CustomPropertyType, CustomProperty } from '../types';
 
@@ -15,83 +15,88 @@ interface Props {
 }
 
 export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNode, onUpdateNodePosition, onUpdateEdge, lockedNodes, onUnlockNode, globalSettings, onUpdateGlobalSettings }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [caretHover, setCaretHover] = useState(false);
+
   if (!selectedNode && !selectedEdge) {
     return (
-      <div style={panelStyle}>
-        <h3 style={headingStyle}>Settings</h3>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+        <PanelHeader title="Settings" collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
-        <Field label="Edge Width Mode">
-          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-            {(['fixed', 'weighted'] as const).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => onUpdateGlobalSettings({ ...globalSettings, edgeWidthMode: mode })}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  fontSize: 11,
-                  fontWeight: globalSettings.edgeWidthMode === mode ? 700 : 400,
-                  background: globalSettings.edgeWidthMode === mode ? '#e2e8f0' : '#f8fafc',
-                  color: '#64748b',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </Field>
+        <CollapsibleContent collapsed={collapsed}>
+          <Field label="Edge Width Mode">
+            <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              {(['fixed', 'weighted'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => onUpdateGlobalSettings({ ...globalSettings, edgeWidthMode: mode })}
+                  style={{
+                    flex: 1,
+                    padding: '4px 0',
+                    fontSize: 11,
+                    fontWeight: globalSettings.edgeWidthMode === mode ? 700 : 400,
+                    background: globalSettings.edgeWidthMode === mode ? '#e2e8f0' : '#f8fafc',
+                    color: '#64748b',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </Field>
 
-        {globalSettings.edgeWidthMode === 'fixed' && (
-          <Field label="Edge Width: Fixed">
-            <input
-              type="number"
-              min={0.1}
-              max={100}
-              step={0.1}
-              value={globalSettings.fixedEdgeWidth}
-              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+          {globalSettings.edgeWidthMode === 'fixed' && (
+            <Field label="Edge Width: Fixed">
+              <input
+                type="number"
+                min={0.1}
+                max={100}
+                step={0.1}
+                value={globalSettings.fixedEdgeWidth}
+                onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+              />
+            </Field>
+          )}
+
+          {globalSettings.edgeWidthMode === 'weighted' && (
+            <Field label="Edge Width: Weighted">
+              <input
+                type="number"
+                min={0.1}
+                max={100}
+                step={0.1}
+                value={globalSettings.weightedEdgeWidth}
+                onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, weightedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+              />
+            </Field>
+          )}
+
+          <Field label="Node Color">
+            <ColorModeButtons
+              modes={COLOR_MODE_OPTIONS}
+              active={globalSettings.nodeColorMode}
+              onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, nodeColorMode: mode as NodeColorMode })}
             />
           </Field>
-        )}
 
-        {globalSettings.edgeWidthMode === 'weighted' && (
-          <Field label="Edge Width: Weighted">
-            <input
-              type="number"
-              min={0.1}
-              max={100}
-              step={0.1}
-              value={globalSettings.weightedEdgeWidth}
-              onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, weightedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+          <Field label="Edge Color">
+            <ColorModeButtons
+              modes={EDGE_COLOR_MODE_OPTIONS}
+              active={globalSettings.edgeColorMode}
+              onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, edgeColorMode: mode as EdgeColorMode })}
             />
           </Field>
-        )}
 
-        <Field label="Node Color">
-          <ColorModeButtons
-            modes={COLOR_MODE_OPTIONS}
-            active={globalSettings.nodeColorMode}
-            onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, nodeColorMode: mode as NodeColorMode })}
-          />
-        </Field>
-
-        <Field label="Edge Color">
-          <ColorModeButtons
-            modes={EDGE_COLOR_MODE_OPTIONS}
-            active={globalSettings.edgeColorMode}
-            onChange={(mode) => onUpdateGlobalSettings({ ...globalSettings, edgeColorMode: mode as EdgeColorMode })}
-          />
-        </Field>
-
-        {lockedNodes.length > 0 && (
-          <>
-            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
-            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
-          </>
-        )}
+          {lockedNodes.length > 0 && (
+            <>
+              <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+              <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+            </>
+          )}
+        </CollapsibleContent>
       </div>
     );
   }
@@ -99,205 +104,207 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
   if (selectedNode) {
     const d = selectedNode.data as NeuronNodeData;
     return (
-      <div style={panelStyle}>
-        <h3 style={headingStyle}>Node {selectedNode.id}</h3>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+        <PanelHeader title={`Node ${selectedNode.id}`} collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
-        <Field label="Shape">
-          <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-            {(['circle', 'rectangle', 'arrow'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => onUpdateNode(selectedNode.id, { shape: s })}
-                style={{
-                  flex: 1,
-                  padding: '4px 0',
-                  fontSize: 11,
-                  fontWeight: d.shape === s ? 700 : 400,
-                  background: d.shape === s ? '#6366f1' : '#f8fafc',
-                  color: d.shape === s ? '#fff' : '#64748b',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </Field>
+        <CollapsibleContent collapsed={collapsed}>
+          <Field label="Shape">
+            <div style={{ display: 'flex', gap: 0, borderRadius: 6, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+              {(['circle', 'rectangle', 'arrow'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onUpdateNode(selectedNode.id, { shape: s })}
+                  style={{
+                    flex: 1,
+                    padding: '4px 0',
+                    fontSize: 11,
+                    fontWeight: d.shape === s ? 700 : 400,
+                    background: d.shape === s ? '#6366f1' : '#f8fafc',
+                    color: d.shape === s ? '#fff' : '#64748b',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </Field>
 
-        <Field label="Label">
-          <input
-            id="node-label-input"
-            type="text"
-            value={d.label}
-            onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}
-          />
-        </Field>
-
-        <Field label="Font Size">
-          <input
-            type="number"
-            min={8}
-            max={48}
-            value={d.fontSize ?? 12}
-            onChange={(e) => onUpdateNode(selectedNode.id, { fontSize: Math.min(48, Math.max(8, Number(e.target.value))) })}
-          />
-        </Field>
-
-        <Field label="Neurotransmitter">
-          <select
-            value={d.neurotransmitter ?? 'Other'}
-            onChange={(e) => onUpdateNode(selectedNode.id, { neurotransmitter: e.target.value as Neurotransmitter })}
-            style={{
-              width: '100%',
-              padding: '4px 6px',
-              fontSize: 12,
-              borderRadius: 6,
-              border: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              color: '#334155',
-            }}
-          >
-            {(['ACh', 'GABA', 'Glut', 'Other'] as const).map((nt) => (
-              <option key={nt} value={nt}>{nt}</option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Color">
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Field label="Label">
             <input
-              type="color"
-              value={d.color}
-              style={{ width: 40, flexShrink: 0, padding: '2px' }}
-              onChange={(e) => onUpdateNode(selectedNode.id, { color: e.target.value })}
-            />
-            <input
+              id="node-label-input"
               type="text"
-              value={d.color}
-              style={{ fontFamily: 'monospace' }}
-              onChange={(e) => {
-                if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
-                  onUpdateNode(selectedNode.id, { color: e.target.value });
-                }
-              }}
-            />
-          </div>
-        </Field>
-
-        <Field label="Position">
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>X</label>
-            <input
-              type="number"
-              value={Math.round(selectedNode.position.x)}
-              style={{ flex: 1 }}
-              onChange={(e) => onUpdateNodePosition(selectedNode.id, { x: Number(e.target.value) })}
-            />
-            <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>Y</label>
-            <input
-              type="number"
-              value={Math.round(selectedNode.position.y)}
-              style={{ flex: 1 }}
-              onChange={(e) => onUpdateNodePosition(selectedNode.id, { y: Number(e.target.value) })}
-            />
-          </div>
-        </Field>
-
-        {d.shape === 'circle' && (
-          <Field label="Radius">
-            <input
-              type="number"
-              min={10}
-              max={200}
-              value={d.radius ?? 35}
-              onChange={(e) => onUpdateNode(selectedNode.id, { radius: Math.min(200, Math.max(10, Number(e.target.value))) })}
+              value={d.label}
+              onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}
             />
           </Field>
-        )}
 
-        {(d.shape === 'rectangle' || d.shape === 'arrow') && (
-          <>
-            <Field label="Width">
+          <Field label="Font Size">
+            <input
+              type="number"
+              min={8}
+              max={48}
+              value={d.fontSize ?? 12}
+              onChange={(e) => onUpdateNode(selectedNode.id, { fontSize: Math.min(48, Math.max(8, Number(e.target.value))) })}
+            />
+          </Field>
+
+          <Field label="Neurotransmitter">
+            <select
+              value={d.neurotransmitter ?? 'Other'}
+              onChange={(e) => onUpdateNode(selectedNode.id, { neurotransmitter: e.target.value as Neurotransmitter })}
+              style={{
+                width: '100%',
+                padding: '4px 6px',
+                fontSize: 12,
+                borderRadius: 6,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#334155',
+              }}
+            >
+              {(['ACh', 'GABA', 'Glut', 'Other'] as const).map((nt) => (
+                <option key={nt} value={nt}>{nt}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Color">
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
-                type="number"
-                min={20}
-                max={400}
-                value={d.width ?? 90}
-                onChange={(e) => onUpdateNode(selectedNode.id, { width: Math.min(400, Math.max(20, Number(e.target.value))) })}
+                type="color"
+                value={d.color}
+                style={{ width: 40, flexShrink: 0, padding: '2px' }}
+                onChange={(e) => onUpdateNode(selectedNode.id, { color: e.target.value })}
               />
-            </Field>
-
-            <Field label="Height">
               <input
-                type="number"
-                min={20}
-                max={200}
-                value={d.height ?? 44}
-                onChange={(e) => onUpdateNode(selectedNode.id, { height: Math.min(200, Math.max(20, Number(e.target.value))) })}
+                type="text"
+                value={d.color}
+                style={{ fontFamily: 'monospace' }}
+                onChange={(e) => {
+                  if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+                    onUpdateNode(selectedNode.id, { color: e.target.value });
+                  }
+                }}
               />
-            </Field>
-
-            <Field label={`Rotation: ${d.rotation ?? 0}°`}>
-              <input
-                type="range"
-                min={-180}
-                max={180}
-                step={1}
-                value={d.rotation ?? 0}
-                onChange={(e) => onUpdateNode(selectedNode.id, { rotation: Number(e.target.value) })}
-              />
-            </Field>
-
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={d.rotateLabel ?? false}
-                  onChange={(e) => onUpdateNode(selectedNode.id, { rotateLabel: e.target.checked })}
-                />
-                <span style={{ fontSize: 11, color: '#64748b' }}>Rotate label</span>
-              </label>
             </div>
-          </>
-        )}
+          </Field>
 
-        <CustomProperties
-          properties={d.customProperties ?? {}}
-          onChange={(props) => onUpdateNode(selectedNode.id, { customProperties: props })}
-        />
+          <Field label="Position">
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>X</label>
+              <input
+                type="number"
+                value={Math.round(selectedNode.position.x)}
+                style={{ flex: 1 }}
+                onChange={(e) => onUpdateNodePosition(selectedNode.id, { x: Number(e.target.value) })}
+              />
+              <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>Y</label>
+              <input
+                type="number"
+                value={Math.round(selectedNode.position.y)}
+                style={{ flex: 1 }}
+                onChange={(e) => onUpdateNodePosition(selectedNode.id, { y: Number(e.target.value) })}
+              />
+            </div>
+          </Field>
 
-        <button
-          onClick={() => onUpdateNode(selectedNode.id, { locked: true })}
-          style={{
-            width: '100%',
-            padding: '5px 0',
-            background: '#f8fafc',
-            color: '#64748b',
-            border: '1px solid #e2e8f0',
-            borderRadius: 6,
-            fontSize: 11,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 5,
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-            <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
-            <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
-          </svg>
-          Lock
-        </button>
+          {d.shape === 'circle' && (
+            <Field label="Radius">
+              <input
+                type="number"
+                min={10}
+                max={200}
+                value={d.radius ?? 35}
+                onChange={(e) => onUpdateNode(selectedNode.id, { radius: Math.min(200, Math.max(10, Number(e.target.value))) })}
+              />
+            </Field>
+          )}
 
-        {lockedNodes.length > 0 && (
-          <>
-            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
-            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
-          </>
-        )}
+          {(d.shape === 'rectangle' || d.shape === 'arrow') && (
+            <>
+              <Field label="Width">
+                <input
+                  type="number"
+                  min={20}
+                  max={400}
+                  value={d.width ?? 90}
+                  onChange={(e) => onUpdateNode(selectedNode.id, { width: Math.min(400, Math.max(20, Number(e.target.value))) })}
+                />
+              </Field>
+
+              <Field label="Height">
+                <input
+                  type="number"
+                  min={20}
+                  max={200}
+                  value={d.height ?? 44}
+                  onChange={(e) => onUpdateNode(selectedNode.id, { height: Math.min(200, Math.max(20, Number(e.target.value))) })}
+                />
+              </Field>
+
+              <Field label={`Rotation: ${d.rotation ?? 0}°`}>
+                <input
+                  type="range"
+                  min={-180}
+                  max={180}
+                  step={1}
+                  value={d.rotation ?? 0}
+                  onChange={(e) => onUpdateNode(selectedNode.id, { rotation: Number(e.target.value) })}
+                />
+              </Field>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={d.rotateLabel ?? false}
+                    onChange={(e) => onUpdateNode(selectedNode.id, { rotateLabel: e.target.checked })}
+                  />
+                  <span style={{ fontSize: 11, color: '#64748b' }}>Rotate label</span>
+                </label>
+              </div>
+            </>
+          )}
+
+          <CustomProperties
+            properties={d.customProperties ?? {}}
+            onChange={(props) => onUpdateNode(selectedNode.id, { customProperties: props })}
+          />
+
+          <button
+            onClick={() => onUpdateNode(selectedNode.id, { locked: true })}
+            style={{
+              width: '100%',
+              padding: '5px 0',
+              background: '#f8fafc',
+              color: '#64748b',
+              border: '1px solid #e2e8f0',
+              borderRadius: 6,
+              fontSize: 11,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 5,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
+              <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
+            </svg>
+            Lock
+          </button>
+
+          {lockedNodes.length > 0 && (
+            <>
+              <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+              <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+            </>
+          )}
+        </CollapsibleContent>
       </div>
     );
   }
@@ -308,66 +315,68 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
     const controlPointCount = d?.controlPoints?.length ?? 0;
 
     return (
-      <div style={panelStyle}>
-        <h3 style={headingStyle}>Edge</h3>
+      <div style={{ ...panelStyle, width: collapsed ? 120 : 260, transition: 'width 0.2s ease' }}>
+        <PanelHeader title="Edge" collapsed={collapsed} caretHover={caretHover} onToggle={() => setCollapsed(!collapsed)} onCaretHover={setCaretHover} />
 
-        <Field label="Synapse Count">
-          <input
-            type="number"
-            min={0}
-            value={synapseCount}
-            onChange={(e) => onUpdateEdge(selectedEdge.id, { synapseCount: Math.max(0, Number(e.target.value)) })}
-          />
-        </Field>
+        <CollapsibleContent collapsed={collapsed}>
+          <Field label="Synapse Count">
+            <input
+              type="number"
+              min={0}
+              value={synapseCount}
+              onChange={(e) => onUpdateEdge(selectedEdge.id, { synapseCount: Math.max(0, Number(e.target.value)) })}
+            />
+          </Field>
 
-        <Field label={`Label Position: ${((d?.labelPosition ?? 0.5) * 100).toFixed(0)}%`}>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={d?.labelPosition ?? 0.5}
-            onChange={(e) => onUpdateEdge(selectedEdge.id, { labelPosition: Number(e.target.value) })}
-          />
-        </Field>
+          <Field label={`Label Position: ${((d?.labelPosition ?? 0.5) * 100).toFixed(0)}%`}>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={d?.labelPosition ?? 0.5}
+              onChange={(e) => onUpdateEdge(selectedEdge.id, { labelPosition: Number(e.target.value) })}
+            />
+          </Field>
 
-        <Field label="Control Points">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>
-              {controlPointCount} point{controlPointCount !== 1 ? 's' : ''}
+          <Field label="Control Points">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>
+                {controlPointCount} point{controlPointCount !== 1 ? 's' : ''}
+              </span>
+              {controlPointCount > 0 && (
+                <button
+                  onClick={() => onUpdateEdge(selectedEdge.id, { controlPoints: [] })}
+                  style={{
+                    background: '#fff5f5',
+                    color: '#ef4444',
+                    padding: '2px 8px',
+                    border: '1px solid #fecaca',
+                    fontSize: 11,
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+              Double-click edge to add. Alt+click a point to remove.
+            </p>
+          </Field>
+
+          <Field label="Connection">
+            <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>
+              {selectedEdge.source} → {selectedEdge.target}
             </span>
-            {controlPointCount > 0 && (
-              <button
-                onClick={() => onUpdateEdge(selectedEdge.id, { controlPoints: [] })}
-                style={{
-                  background: '#fff5f5',
-                  color: '#ef4444',
-                  padding: '2px 8px',
-                  border: '1px solid #fecaca',
-                  fontSize: 11,
-                }}
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <p style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
-            Double-click edge to add. Alt+click a point to remove.
-          </p>
-        </Field>
+          </Field>
 
-        <Field label="Connection">
-          <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: 'monospace' }}>
-            {selectedEdge.source} → {selectedEdge.target}
-          </span>
-        </Field>
-
-        {lockedNodes.length > 0 && (
-          <>
-            <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
-            <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
-          </>
-        )}
+          {lockedNodes.length > 0 && (
+            <>
+              <div style={{ width: '100%', height: 1, background: '#e2e8f0', margin: '14px 0' }} />
+              <LockedNodesList lockedNodes={lockedNodes} onUnlockNode={onUnlockNode} />
+            </>
+          )}
+        </CollapsibleContent>
       </div>
     );
   }
@@ -401,10 +410,92 @@ const headingStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
   color: '#6366f1',
-  marginBottom: 16,
+  margin: 0,
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
 };
+
+function PanelHeader({ title, collapsed, caretHover, onToggle, onCaretHover }: {
+  title: string;
+  collapsed: boolean;
+  caretHover: boolean;
+  onToggle: () => void;
+  onCaretHover: (hover: boolean) => void;
+}) {
+  // Up when expanded, down when collapsed, right on hover (always)
+  const rotation = caretHover ? (collapsed ? -90 : 270) : (collapsed ? 0 : 180);
+
+  // Suppress transition for one frame when collapsed toggles while hovered,
+  // so the -90 ↔ 270 swap (same visual angle) doesn't animate a 360° spin.
+  const [suppressTransition, setSuppressTransition] = useState(false);
+  const prevCollapsedRef = useRef(collapsed);
+  useLayoutEffect(() => {
+    if (prevCollapsedRef.current !== collapsed && caretHover) {
+      setSuppressTransition(true);
+      requestAnimationFrame(() => setSuppressTransition(false));
+    }
+    prevCollapsedRef.current = collapsed;
+  }, [collapsed, caretHover]);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: collapsed ? 0 : 16 }}>
+      <h3 style={headingStyle}>{title}</h3>
+      <button
+        onClick={onToggle}
+        onMouseEnter={() => onCaretHover(true)}
+        onMouseLeave={() => onCaretHover(false)}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        title={collapsed ? 'Expand' : 'Collapse'}
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          style={{
+            transform: `rotate(${rotation}deg)`,
+            transition: suppressTransition ? 'none' : 'transform 0.2s ease',
+          }}
+        >
+          <path d="M3.5 5.25L7 8.75L10.5 5.25" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function CollapsibleContent({ collapsed, children }: { collapsed: boolean; children: React.ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    if (contentRef.current) {
+      setHeight(contentRef.current.scrollHeight);
+    }
+  });
+
+  return (
+    <div
+      style={{
+        maxHeight: collapsed ? 0 : height,
+        opacity: collapsed ? 0 : 1,
+        overflow: 'hidden',
+        transition: 'max-height 0.2s ease, opacity 0.2s ease',
+      }}
+    >
+      <div ref={contentRef}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function colorModeLabel(mode: string): React.ReactNode {
   switch (mode) {
