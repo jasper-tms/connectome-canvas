@@ -32,6 +32,7 @@ import {
   importFromText,
   downloadFile,
 } from './utils/serialize';
+import { encodeState, decodeState, getStateFromUrl, setUrlState } from './utils/urlState';
 
 const nodeTypes = { neuron: NeuronNode };
 const edgeTypes = { synapse: SynapseEdge };
@@ -46,6 +47,9 @@ const DEFAULT_EDGE_OPTIONS = {
   type: 'synapse',
   markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
 };
+
+// Check synchronously so we can skip generating defaults when a URL state exists
+const INITIAL_URL_STATE = getStateFromUrl();
 
 const INITIAL_NODES: Node[] = [
   {
@@ -88,8 +92,8 @@ const INITIAL_EDGES: Edge[] = [
 ];
 
 export default function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_EDGES);
+  const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_URL_STATE ? [] : INITIAL_NODES);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_URL_STATE ? [] : INITIAL_EDGES);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
@@ -102,6 +106,93 @@ export default function App() {
     edgeColorMode: 'grey',
   });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
+  // ── History / undo ──
+  const [history, setHistory] = useState<string[]>([]);
+  const isRestoringRef = useRef(false);
+  const debounceRef = useRef<number>(0);
+  const initializedRef = useRef(false);
+  const MAX_HISTORY = 100;
+
+  // Load state from URL on mount, or snapshot the initial state
+  useEffect(() => {
+    (async () => {
+      const encoded = INITIAL_URL_STATE;
+      if (encoded) {
+        try {
+          const state = await decodeState(encoded);
+          const { nodes: newNodes, edges: newEdges } = deserializeCanvas(state);
+          isRestoringRef.current = true;
+          setNodes(newNodes);
+          setEdges(newEdges);
+          if (state.projectName) setProjectName(state.projectName);
+          if (state.globalSettings) setGlobalSettings(state.globalSettings);
+          const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
+          idCounter = Math.max(idCounter, ...allIds) + 1;
+          setHistory([encoded]);
+        } catch {
+          const state = serializeCanvas(INITIAL_NODES, INITIAL_EDGES, 'untitled');
+          const enc = await encodeState(state);
+          setHistory([enc]);
+          setUrlState(enc);
+        }
+      } else {
+        const state = serializeCanvas(INITIAL_NODES, INITIAL_EDGES, 'untitled');
+        const enc = await encodeState(state);
+        setHistory([enc]);
+        setUrlState(enc);
+      }
+      initializedRef.current = true;
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced: encode current state → push to history + update URL
+  useEffect(() => {
+    if (!initializedRef.current) return;
+    if (isRestoringRef.current) {
+      isRestoringRef.current = false;
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(async () => {
+      const state = serializeCanvas(nodes, edges, projectName, globalSettings);
+      const encoded = await encodeState(state);
+      setUrlState(encoded);
+      setHistory((prev) => {
+        // Skip if identical to latest entry (e.g. after undo restore)
+        if (prev.length > 0 && prev[prev.length - 1] === encoded) return prev;
+        const next = [...prev, encoded];
+        return next.length > MAX_HISTORY ? next.slice(-MAX_HISTORY) : next;
+      });
+    }, 500);
+    return () => clearTimeout(debounceRef.current);
+  }, [nodes, edges, projectName, globalSettings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canUndo = history.length > 1;
+
+  async function handleUndo() {
+    if (history.length <= 1) return;
+    clearTimeout(debounceRef.current);
+    const newHistory = history.slice(0, -1);
+    const encoded = newHistory[newHistory.length - 1];
+    try {
+      const state = await decodeState(encoded);
+      const { nodes: newNodes, edges: newEdges } = deserializeCanvas(state);
+      isRestoringRef.current = true;
+      setNodes(newNodes);
+      setEdges(newEdges);
+      if (state.projectName) setProjectName(state.projectName);
+      if (state.globalSettings) setGlobalSettings(state.globalSettings);
+      setHistory(newHistory);
+      setUrlState(encoded);
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
+      idCounter = Math.max(idCounter, ...allIds) + 1;
+    } catch {
+      setHistory(newHistory);
+    }
+  }
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -313,6 +404,10 @@ export default function App() {
   // Global key handlers
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey && !isInputActive()) {
+        e.preventDefault();
+        handleUndo();
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isInputActive()) {
         deleteSelected();
       }
@@ -394,6 +489,8 @@ export default function App() {
         hasSelection={hasSelection}
         onExport={handleExport}
         onImport={() => setShowImport(true)}
+        onUndo={handleUndo}
+        canUndo={canUndo}
       />
 
       <PropertiesPanel

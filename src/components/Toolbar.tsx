@@ -9,6 +9,8 @@ interface ToolbarProps {
   hasSelection: boolean;
   onExport: () => void;
   onImport: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }
 
 export default function Toolbar({
@@ -19,6 +21,8 @@ export default function Toolbar({
   hasSelection,
   onExport,
   onImport,
+  onUndo,
+  canUndo,
 }: ToolbarProps) {
   const [labelHover, setLabelHover] = useState(false);
   const [iconHover, setIconHover] = useState<NeuronShape | null>(null);
@@ -113,6 +117,18 @@ export default function Toolbar({
             );
           })}
         </div>
+
+        <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+          style={btnStyle('#f8fafc')}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ verticalAlign: 'middle', marginRight: 5 }}>
+            <path d="M2.5 5.5L5 3M2.5 5.5L5 8M2.5 5.5H9a2.5 2.5 0 110 5H7" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Undo
+        </button>
 
         <button
           onClick={onDeleteSelected}
