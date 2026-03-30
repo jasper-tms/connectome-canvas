@@ -107,6 +107,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           background: color + '30',
           border: `${outlineWidth}px solid ${outlineColor}`,
           display: 'flex',
+          flexDirection: 'column' as const,
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
@@ -116,6 +117,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           width: nodeWidth,
           height: nodeHeight,
           display: 'flex',
+          flexDirection: 'column' as const,
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
@@ -128,6 +130,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           background: color + '30',
           border: `${outlineWidth}px solid ${outlineColor}`,
           display: 'flex',
+          flexDirection: 'column' as const,
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
@@ -158,7 +161,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
         connectionMode="Loose" (set in App.tsx) means this source handle also
         accepts incoming connections as a target.
       */}
-      <Handle
+      {!locked && <Handle
         type="source"
         position={Position.Top}
         id="border"
@@ -181,7 +184,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           cursor: 'crosshair',
           zIndex: 10,
         }}
-      />
+      />}
 
       {/* Interior hit-zone: sits above the Handle (z‑index 20) so interior pointer
           events bubble through to XYFlow's drag handler instead of starting a connection. */}
@@ -246,24 +249,22 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
         >
           {label}
         </span>
+        {locked && (
+          <svg
+            width="12" height="12" viewBox="0 0 14 14" fill="none"
+            style={{
+              zIndex: 30,
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
+              pointerEvents: 'none',
+              transform: (shape === 'rectangle' || shape === 'arrow') && !rotateLabel ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
+              marginTop: -1,
+            }}
+          >
+            <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
+            <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
+          </svg>
+        )}
       </div>
-
-      {locked && (
-        <svg
-          width="14" height="14" viewBox="0 0 14 14" fill="none"
-          style={{
-            position: 'absolute',
-            top: -4,
-            right: -4,
-            zIndex: 30,
-            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
-            pointerEvents: 'none',
-          }}
-        >
-          <rect x="2" y="6" width="10" height="7" rx="1.5" fill="#64748b" />
-          <path d="M4.5 6V4.5a2.5 2.5 0 015 0V6" stroke="#64748b" strokeWidth="1.5" fill="none" />
-        </svg>
-      )}
     </div>
   );
 }
