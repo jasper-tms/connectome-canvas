@@ -412,9 +412,11 @@ export default function App() {
         deleteSelected();
       }
       if (e.key === 'Enter') {
-        // Blur any focused input, then deselect all nodes/edges
+        // If an input is focused, just blur it (commits its value) and stop —
+        // don't also deselect the node/edge being edited.
         if (isInputActive()) {
           (document.activeElement as HTMLElement).blur();
+          return;
         }
         setSelectedNodeId(null);
         setSelectedEdgeId(null);

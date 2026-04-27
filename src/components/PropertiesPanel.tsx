@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 import type { NeuronNodeData, SynapseEdgeData, GlobalSettings, Neurotransmitter, NodeColorMode, EdgeColorMode, CustomPropertyType, CustomProperty } from '../types';
 
@@ -50,26 +50,24 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
           {globalSettings.edgeWidthMode === 'fixed' && (
             <Field label="Edge Width: Fixed">
-              <input
-                type="number"
+              <NumberInput
                 min={0.1}
                 max={100}
                 step={0.1}
                 value={globalSettings.fixedEdgeWidth}
-                onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+                onCommit={(v) => onUpdateGlobalSettings({ ...globalSettings, fixedEdgeWidth: v })}
               />
             </Field>
           )}
 
           {globalSettings.edgeWidthMode === 'weighted' && (
             <Field label="Edge Width: Weighted">
-              <input
-                type="number"
+              <NumberInput
                 min={0.1}
                 max={100}
                 step={0.1}
                 value={globalSettings.weightedEdgeWidth}
-                onChange={(e) => onUpdateGlobalSettings({ ...globalSettings, weightedEdgeWidth: Math.min(100, Math.max(0.1, Number(e.target.value))) })}
+                onCommit={(v) => onUpdateGlobalSettings({ ...globalSettings, weightedEdgeWidth: v })}
               />
             </Field>
           )}
@@ -139,12 +137,11 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           </Field>
 
           <Field label="Font Size">
-            <input
-              type="number"
+            <NumberInput
               min={8}
               max={48}
               value={d.fontSize ?? 12}
-              onChange={(e) => onUpdateNode(selectedNode.id, { fontSize: Math.min(48, Math.max(8, Number(e.target.value))) })}
+              onCommit={(v) => onUpdateNode(selectedNode.id, { fontSize: v })}
             />
           </Field>
 
@@ -192,30 +189,27 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           <Field label="Position">
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>X</label>
-              <input
-                type="number"
+              <NumberInput
                 value={Math.round(selectedNode.position.x)}
                 style={{ flex: 1 }}
-                onChange={(e) => onUpdateNodePosition(selectedNode.id, { x: Number(e.target.value) })}
+                onCommit={(v) => onUpdateNodePosition(selectedNode.id, { x: v })}
               />
               <label style={{ fontSize: 10, color: '#94a3b8', width: 12 }}>Y</label>
-              <input
-                type="number"
+              <NumberInput
                 value={Math.round(selectedNode.position.y)}
                 style={{ flex: 1 }}
-                onChange={(e) => onUpdateNodePosition(selectedNode.id, { y: Number(e.target.value) })}
+                onCommit={(v) => onUpdateNodePosition(selectedNode.id, { y: v })}
               />
             </div>
           </Field>
 
           {d.shape === 'circle' && (
             <Field label="Radius">
-              <input
-                type="number"
+              <NumberInput
                 min={10}
                 max={200}
                 value={d.radius ?? 35}
-                onChange={(e) => onUpdateNode(selectedNode.id, { radius: Math.min(200, Math.max(10, Number(e.target.value))) })}
+                onCommit={(v) => onUpdateNode(selectedNode.id, { radius: v })}
               />
             </Field>
           )}
@@ -223,22 +217,20 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           {(d.shape === 'rectangle' || d.shape === 'arrow') && (
             <>
               <Field label="Width">
-                <input
-                  type="number"
+                <NumberInput
                   min={20}
                   max={400}
                   value={d.width ?? 90}
-                  onChange={(e) => onUpdateNode(selectedNode.id, { width: Math.min(400, Math.max(20, Number(e.target.value))) })}
+                  onCommit={(v) => onUpdateNode(selectedNode.id, { width: v })}
                 />
               </Field>
 
               <Field label="Height">
-                <input
-                  type="number"
+                <NumberInput
                   min={20}
                   max={200}
                   value={d.height ?? 44}
-                  onChange={(e) => onUpdateNode(selectedNode.id, { height: Math.min(200, Math.max(20, Number(e.target.value))) })}
+                  onCommit={(v) => onUpdateNode(selectedNode.id, { height: v })}
                 />
               </Field>
 
@@ -257,7 +249,7 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                   <input
                     type="checkbox"
-                    checked={d.rotateLabel ?? false}
+                    checked={d.rotateLabel ?? true}
                     onChange={(e) => onUpdateNode(selectedNode.id, { rotateLabel: e.target.checked })}
                   />
                   <span style={{ fontSize: 11, color: '#64748b' }}>Rotate label</span>
@@ -313,11 +305,10 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
         <CollapsibleContent collapsed={collapsed}>
           <Field label="Synapse Count">
-            <input
-              type="number"
+            <NumberInput
               min={0}
               value={synapseCount}
-              onChange={(e) => onUpdateEdge(selectedEdge.id, { synapseCount: Math.max(0, Number(e.target.value)) })}
+              onCommit={(v) => onUpdateEdge(selectedEdge.id, { synapseCount: v })}
             />
           </Field>
 
@@ -369,6 +360,87 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
   }
 
   return null;
+}
+
+interface NumberInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'min' | 'max' | 'type'> {
+  value: number;
+  onCommit: (value: number) => void;
+  min?: number;
+  max?: number;
+}
+
+function NumberInput({ value, onCommit, min, max, onBlur, onKeyDown, onMouseDown, ...rest }: NumberInputProps) {
+  const [draft, setDraft] = useState(String(value));
+  const [editing, setEditing] = useState(false);
+  // Tracks whether the next onChange came from typing (defer commit) or from a
+  // spinner click / arrow key (commit immediately). Set by onKeyDown/onMouseDown
+  // before onChange fires.
+  const isTypingChange = useRef(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(String(value));
+  }, [value, editing]);
+
+  function clamp(raw: string): number {
+    let n = Number(raw);
+    if (isNaN(n)) n = value;
+    if (min !== undefined) n = Math.max(min, n);
+    if (max !== undefined) n = Math.min(max, n);
+    return n;
+  }
+
+  return (
+    <input
+      {...rest}
+      type="number"
+      min={min}
+      max={max}
+      value={draft}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        setEditing(true);
+        if (!isTypingChange.current) {
+          const n = clamp(raw);
+          if (n !== value) onCommit(n);
+          setDraft(String(n));
+        }
+      }}
+      onFocus={() => setEditing(true)}
+      onBlur={(e) => {
+        const n = clamp(draft);
+        if (n !== value) onCommit(n);
+        setDraft(String(n));
+        setEditing(false);
+        onBlur?.(e);
+      }}
+      onMouseDown={(e) => {
+        // Default to "non-typing" — covers spinner clicks. Subsequent typing
+        // sets it back to true via onKeyDown before onChange fires.
+        isTypingChange.current = false;
+        onMouseDown?.(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          isTypingChange.current = false;
+        } else if (e.key === 'Enter') {
+          // Stop the global Enter handler from seeing this — we blur the input
+          // synchronously below, which would otherwise let the global handler
+          // deselect the node/edge.
+          e.stopPropagation();
+          (e.target as HTMLInputElement).blur();
+        } else if (e.key === 'Escape') {
+          e.stopPropagation();
+          setDraft(String(value));
+          setEditing(false);
+          (e.target as HTMLInputElement).blur();
+        } else {
+          isTypingChange.current = true;
+        }
+        onKeyDown?.(e);
+      }}
+    />
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -578,13 +650,21 @@ function CustomProperties({ properties, onChange }: { properties: Record<string,
               <span style={{ fontSize: 9, color: '#94a3b8', flex: '0 0 auto' }}>
                 {prop.type}
               </span>
-              <input
-                type={prop.type === 'string' ? 'text' : 'number'}
-                step={prop.type === 'float' ? 'any' : undefined}
-                value={prop.value}
-                onChange={(e) => handleValueChange(key, e.target.value)}
-                style={{ flex: 1, minWidth: 0 }}
-              />
+              {prop.type === 'string' ? (
+                <input
+                  type="text"
+                  value={prop.value}
+                  onChange={(e) => handleValueChange(key, e.target.value)}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              ) : (
+                <NumberInput
+                  step={prop.type === 'float' ? 'any' : undefined}
+                  value={Number(prop.value)}
+                  onCommit={(v) => handleValueChange(key, String(v))}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+              )}
               <button
                 onClick={() => handleRemove(key)}
                 title="Remove property"

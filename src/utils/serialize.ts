@@ -17,7 +17,7 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
     if ((d.shape === 'rectangle' || d.shape === 'arrow') && d.width !== undefined) node.width = d.width;
     if ((d.shape === 'rectangle' || d.shape === 'arrow') && d.height !== undefined) node.height = d.height;
     if (d.fontSize !== undefined) node.fontSize = d.fontSize;
-    if (d.rotateLabel) node.rotateLabel = true;
+    if (d.rotateLabel === false) node.rotateLabel = false;
     if (d.locked) node.locked = true;
     if (d.neurotransmitter && d.neurotransmitter !== 'Other') node.neurotransmitter = d.neurotransmitter;
     if (d.customProperties && Object.keys(d.customProperties).length > 0) node.customProperties = d.customProperties;
@@ -62,7 +62,7 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
     if (n.width !== undefined) data.width = n.width;
     if (n.height !== undefined) data.height = n.height;
     if (n.fontSize !== undefined) data.fontSize = n.fontSize;
-    if (n.rotateLabel) data.rotateLabel = true;
+    if (n.rotateLabel === false) data.rotateLabel = false;
     if (n.locked) data.locked = true;
     if (n.customProperties && Object.keys(n.customProperties).length > 0) data.customProperties = n.customProperties;
     return {

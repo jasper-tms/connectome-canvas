@@ -240,7 +240,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            transform: (shape === 'rectangle' || shape === 'arrow') && !rotateLabel ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
+            transform: (shape === 'rectangle' || shape === 'arrow') && rotateLabel === false ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
             userSelect: 'none',
             zIndex: 10,
             position: 'relative',
@@ -256,7 +256,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
               zIndex: 30,
               filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))',
               pointerEvents: 'none',
-              transform: (shape === 'rectangle' || shape === 'arrow') && !rotateLabel ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
+              transform: (shape === 'rectangle' || shape === 'arrow') && rotateLabel === false ? `rotate(${-(rotation ?? 0)}deg)` : undefined,
               marginTop: -1,
             }}
           >
