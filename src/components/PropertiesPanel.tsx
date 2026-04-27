@@ -159,8 +159,8 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
           <Field label="Font Size">
             <NumberInput
-              min={8}
-              max={48}
+              min={1}
+              max={96}
               value={d.fontSize ?? 12}
               onCommit={(v) => onUpdateNode(selectedNode.id, { fontSize: v })}
             />
@@ -227,8 +227,8 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
           {d.shape === 'circle' && (
             <Field label="Radius">
               <NumberInput
-                min={10}
-                max={200}
+                min={2}
+                max={1000}
                 value={d.radius ?? 35}
                 onCommit={(v) => onUpdateNode(selectedNode.id, { radius: v })}
               />
@@ -239,8 +239,8 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
             <>
               <Field label="Width">
                 <NumberInput
-                  min={20}
-                  max={400}
+                  min={2}
+                  max={1000}
                   value={d.width ?? 90}
                   onCommit={(v) => onUpdateNode(selectedNode.id, { width: v })}
                 />
@@ -248,8 +248,8 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
 
               <Field label="Height">
                 <NumberInput
-                  min={20}
-                  max={200}
+                  min={2}
+                  max={1000}
                   value={d.height ?? 44}
                   onCommit={(v) => onUpdateNode(selectedNode.id, { height: v })}
                 />
