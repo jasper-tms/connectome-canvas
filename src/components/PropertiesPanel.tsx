@@ -18,6 +18,27 @@ export default function PropertiesPanel({ selectedNode, selectedEdge, onUpdateNo
   const [collapsed, setCollapsed] = useState(false);
   const [caretHover, setCaretHover] = useState(false);
 
+  // Arrow keys expand/collapse the panel when no node is selected
+  // (i.e. global Settings panel or selected-edge panel). Node movement
+  // is handled by React Flow when a node is selected, so we leave those
+  // keypresses alone.
+  useEffect(() => {
+    if (selectedNode) return;
+    function onKeyDown(e: KeyboardEvent) {
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCollapsed(false);
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCollapsed(true);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedNode]);
+
   if (!selectedNode && !selectedEdge) {
     return (
       <div style={{ ...panelStyle, width: collapsed ? 120 : 260, paddingBottom: collapsed ? 16 : 2, transition: 'width 0.2s ease, padding-bottom 0.2s ease' }}>

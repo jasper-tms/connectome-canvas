@@ -100,8 +100,9 @@ export function borderPoint(
   const nodeWidth = measuredWidth ?? (shape === 'circle' ? radius * 2 : rectWidth);
   const nodeHeight = measuredHeight ?? (shape === 'circle' ? radius * 2 : rectHeight);
 
-  const cx = node.position.x + nodeWidth / 2;
-  const cy = node.position.y + nodeHeight / 2;
+  // node.position is the node center (ReactFlow nodeOrigin=[0.5, 0.5]).
+  const cx = node.position.x;
+  const cy = node.position.y;
 
   if (shape === 'circle') {
     const r = nodeWidth / 2;
@@ -160,14 +161,5 @@ export function borderPoint(
  * Compute the angle (degrees) from the node center to a given flow position.
  */
 export function angleToNode(node: Node, pos: { x: number; y: number }): number {
-  const nodeData = node.data as NeuronNodeData;
-  const shape = nodeData.shape ?? 'circle';
-  const radius = nodeData.radius ?? 35;
-  const rectW = nodeData.width ?? 90;
-  const rectH = nodeData.height ?? 44;
-  const nw = (node as any).measured?.width ?? (shape === 'circle' ? radius * 2 : rectW);
-  const nh = (node as any).measured?.height ?? (shape === 'circle' ? radius * 2 : rectH);
-  const cx = node.position.x + nw / 2;
-  const cy = node.position.y + nh / 2;
-  return Math.atan2(pos.y - cy, pos.x - cx) * (180 / Math.PI);
+  return Math.atan2(pos.y - node.position.y, pos.x - node.position.x) * (180 / Math.PI);
 }

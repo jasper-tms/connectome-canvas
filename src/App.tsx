@@ -296,12 +296,8 @@ export default function App() {
       let targetAngle = 180;
       const targetNode = nodes.find((n) => n.id === connection.target);
       if (targetNode) {
-        const nodeWidth = (targetNode as any).measured?.width ?? 90;
-        const nodeHeight = (targetNode as any).measured?.height ?? 44;
-        const cx = targetNode.position.x + nodeWidth / 2;
-        const cy = targetNode.position.y + nodeHeight / 2;
-        const dx = lastConnectionEndPos.x - cx;
-        const dy = lastConnectionEndPos.y - cy;
+        const dx = lastConnectionEndPos.x - targetNode.position.x;
+        const dy = lastConnectionEndPos.y - targetNode.position.y;
         targetAngle = Math.atan2(dy, dx) * (180 / Math.PI);
       }
 
@@ -448,6 +444,9 @@ export default function App() {
           maxZoom={20}
           connectionMode={ConnectionMode.Loose}
           connectionLineComponent={ConnectionLine}
+          nodeOrigin={[0.5, 0.5]}
+          snapToGrid
+          snapGrid={[1, 1]}
           proOptions={{ hideAttribution: false }}
           style={{ background: '#ffffff' }}
           deleteKeyCode={null}
