@@ -139,8 +139,8 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
     !edges.some((e) => e.source === sourceId && e.target === id);
   const isConnectionTarget = isValidTarget && (connection as any).toNode?.id === id;
 
-  const outlineColor = selected ? '#7c8cff' : color;
-  const outlineWidth = selected ? 3 : 2;
+  const outlineColor = color;
+  const outlineWidth = selected ? 4 : 2;
 
   const radius = nodeData.radius ?? 35;
   const rectWidth = nodeData.width ?? 90;
@@ -262,13 +262,13 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
 
       <div style={shapeStyle}>
         {shape === 'arrow' && (() => {
-          // Path is generated for a bbox inset by outlineWidth/2 on all sides,
-          // then translated by (outlineWidth/2, outlineWidth/2). The stroke,
-          // centered on the path, then occupies the outermost outlineWidth/2
-          // of the bbox — matching `box-sizing: border-box` rectangles, where
-          // the selected (3px) stroke stays inside the same outer bounds as
-          // the unselected (2px) stroke.
-          const arrow = arrowSvgPath(nodeWidth - outlineWidth, nodeHeight - outlineWidth);
+          // The path follows the body's outer boundary. Stroke width is doubled
+          // and clipped to the same shape so only the inner half is visible —
+          // matching CSS `box-sizing: border-box`, where the border thickens
+          // inward. A naively-stroked path thickens half outside at the concave
+          // V-notch, since the stroke is centered on the path.
+          const arrow = arrowSvgPath(nodeWidth, nodeHeight);
+          const clipId = `arrow-clip-${id}`;
           return (
             <svg
               width={nodeWidth}
@@ -282,12 +282,15 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
                 pointerEvents: 'none',
               }}
             >
+              <clipPath id={clipId}>
+                <path d={arrow.d} />
+              </clipPath>
               <path
                 d={arrow.d}
-                transform={`translate(${outlineWidth / 2}, ${outlineWidth / 2})`}
                 fill={color + '30'}
                 stroke={outlineColor}
-                strokeWidth={outlineWidth}
+                strokeWidth={outlineWidth * 2}
+                clipPath={`url(#${clipId})`}
               />
             </svg>
           );
