@@ -3,15 +3,16 @@ import type { NeuronNodeData } from '../types';
 
 /**
  * Arrow polygon vertices relative to node center (0,0).
- * Indent depth = halfW / 4 = nodeWidth / 8.
+ * Bounding box is exactly nodeWidth x nodeHeight, matching a rectangle
+ * with the same dimensions. Indent depth = halfW / 4 = nodeWidth / 8.
  */
 export function arrowVertices(halfW: number, halfH: number): { x: number; y: number }[] {
   const indent = halfW / 4;
   return [
     { x: -halfW, y: -halfH },
-    { x: halfW, y: -halfH },
-    { x: halfW + indent, y: 0 },
-    { x: halfW, y: halfH },
+    { x: halfW - indent, y: -halfH },
+    { x: halfW, y: 0 },
+    { x: halfW - indent, y: halfH },
     { x: -halfW, y: halfH },
     { x: -halfW + indent, y: 0 },
   ];

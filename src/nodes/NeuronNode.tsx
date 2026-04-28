@@ -15,14 +15,69 @@ export const pendingAngles = new Map<string, number>();
 const BORDER_ZONE = 4;
 const ARROW_CORNER_RADIUS = 6;
 
-function arrowSvgPath(W: number, H: number, r: number = ARROW_CORNER_RADIUS): string {
+/**
+ * Build an arrow path whose rendered (rounded) bounding box is exactly
+ * [0,0]-[W,H], matching a same-size rectangle. The bbox-touching vertices
+ * (top-left, right point, bottom-left) are pushed outward in x so that the
+ * inward bulge of the quadratic Bezier corner reaches the bbox edge instead
+ * of the vertex. dxL and dxR depend on the corner geometry, which depends
+ * on the outset itself, so a few Newton iterations are needed for an exact
+ * match (a non-iterative formula has H-dependent sub-pixel error that
+ * causes visible jumps as the node is resized).
+ */
+function solveDxL(indent: number, halfH: number, er: number): number {
+  // Solve: dxL * (indent + dxL + L) - er * (indent + dxL) = 0,
+  // where L = sqrt((indent + dxL)^2 + halfH^2).
+  let dxL = (er * indent) / (indent + Math.hypot(indent, halfH));
+  for (let i = 0; i < 6; i++) {
+    const L = Math.hypot(indent + dxL, halfH);
+    const g = dxL * (indent + dxL + L) - er * (indent + dxL);
+    const dL = (indent + dxL) / L;
+    const dg = (indent + dxL + L) + dxL * (1 + dL) - er;
+    if (Math.abs(dg) < 1e-12) break;
+    const step = g / dg;
+    dxL -= step;
+    if (Math.abs(step) < 1e-9) break;
+  }
+  return dxL;
+}
+
+function solveDxR(indent: number, halfH: number, er: number): number {
+  // Solve: dxR * (2L - er) - er * indent = 0,
+  // where L = sqrt((indent + dxR)^2 + halfH^2).
+  let dxR = (er * indent) / (2 * Math.hypot(indent, halfH) - er);
+  for (let i = 0; i < 6; i++) {
+    const L = Math.hypot(indent + dxR, halfH);
+    const h = dxR * (2 * L - er) - er * indent;
+    const dL = (indent + dxR) / L;
+    const dh = (2 * L - er) + dxR * 2 * dL;
+    if (Math.abs(dh) < 1e-12) break;
+    const step = h / dh;
+    dxR -= step;
+    if (Math.abs(step) < 1e-9) break;
+  }
+  return dxR;
+}
+
+function arrowSvgPath(W: number, H: number, r: number = ARROW_CORNER_RADIUS): {
+  d: string;
+  outerLeft: number;
+  outerRight: number;
+} {
   const indent = W / 8;
+  const halfH = H / 2;
+  const diagLen = Math.hypot(indent, halfH);
+  const horizLen = Math.max(0, W - indent);
+  const erObtuse = Math.min(r, diagLen / 3, horizLen / 3);
+  const erPoint = Math.min(r, diagLen / 3);
+  const dxL = solveDxL(indent, halfH, erObtuse);
+  const dxR = solveDxR(indent, halfH, erPoint);
   const verts = [
-    { x: 0, y: 0 },
-    { x: W, y: 0 },
-    { x: W + indent, y: H / 2 },
-    { x: W, y: H },
-    { x: 0, y: H },
+    { x: -dxL, y: 0 },
+    { x: W - indent, y: 0 },
+    { x: W + dxR, y: H / 2 },
+    { x: W - indent, y: H },
+    { x: -dxL, y: H },
     { x: indent, y: H / 2 },
   ];
   const n = verts.length;
@@ -41,7 +96,7 @@ function arrowSvgPath(W: number, H: number, r: number = ARROW_CORNER_RADIUS): st
     d += i === 0 ? `M ${sx} ${sy}` : ` L ${sx} ${sy}`;
     d += ` Q ${curr.x} ${curr.y} ${ex} ${ey}`;
   }
-  return d + ' Z';
+  return { d: d + ' Z', outerLeft: -dxL, outerRight: W + dxR };
 }
 
 function arrowClipData(
@@ -206,29 +261,37 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
       />
 
       <div style={shapeStyle}>
-        {shape === 'arrow' && (
-          <svg
-            width={nodeWidth * 1.125 + outlineWidth}
-            height={nodeHeight}
-            viewBox={`${-outlineWidth / 2} 0 ${nodeWidth * 1.125 + outlineWidth} ${nodeHeight}`}
-            style={{
-              position: 'absolute',
-              left: -outlineWidth / 2,
-              top: 0,
-              pointerEvents: 'none',
-            }}
-          >
-            {/* Arrow shape: indent on left edge (concave), point on right edge (convex) */}
-            {/* Path is inset by outlineWidth/2 top+bottom so the stroke stays within [0, nodeHeight] */}
-            <path
-              d={arrowSvgPath(nodeWidth, nodeHeight - outlineWidth)}
-              transform={`translate(0, ${outlineWidth / 2})`}
-              fill={color + '30'}
-              stroke={outlineColor}
-              strokeWidth={outlineWidth}
-            />
-          </svg>
-        )}
+        {shape === 'arrow' && (() => {
+          // Path is generated for a bbox inset by outlineWidth/2 on all sides,
+          // then translated by (outlineWidth/2, outlineWidth/2). The stroke,
+          // centered on the path, then occupies the outermost outlineWidth/2
+          // of the bbox — matching `box-sizing: border-box` rectangles, where
+          // the selected (3px) stroke stays inside the same outer bounds as
+          // the unselected (2px) stroke.
+          const arrow = arrowSvgPath(nodeWidth - outlineWidth, nodeHeight - outlineWidth);
+          return (
+            <svg
+              width={nodeWidth}
+              height={nodeHeight}
+              viewBox={`0 0 ${nodeWidth} ${nodeHeight}`}
+              overflow="visible"
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                pointerEvents: 'none',
+              }}
+            >
+              <path
+                d={arrow.d}
+                transform={`translate(${outlineWidth / 2}, ${outlineWidth / 2})`}
+                fill={color + '30'}
+                stroke={outlineColor}
+                strokeWidth={outlineWidth}
+              />
+            </svg>
+          );
+        })()}
         <span
           style={{
             fontSize: labelFontSize,
@@ -244,7 +307,6 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
             userSelect: 'none',
             zIndex: 10,
             position: 'relative',
-            left: shape === 'arrow' ? nodeWidth / 16 : undefined,
           }}
         >
           {label}
