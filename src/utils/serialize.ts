@@ -2,7 +2,13 @@ import type { Node, Edge } from '@xyflow/react';
 import yaml from 'js-yaml';
 import type { NeuronNodeData, SynapseEdgeData, CanvasState, SerializedNode, SerializedEdge, GlobalSettings } from '../types';
 
-export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: string, globalSettings?: GlobalSettings): CanvasState {
+export function serializeCanvas(
+  nodes: Node[],
+  edges: Edge[],
+  projectName?: string,
+  globalSettings?: GlobalSettings,
+  viewport?: { x: number; y: number; zoom: number },
+): CanvasState {
   const serializedNodes: SerializedNode[] = nodes.map((n) => {
     const d = n.data as NeuronNodeData;
     const node: SerializedNode = {
@@ -46,6 +52,13 @@ export function serializeCanvas(nodes: Node[], edges: Edge[], projectName?: stri
 
   const result: CanvasState = { projectName: projectName || 'untitled', nodes: serializedNodes, edges: serializedEdges };
   if (globalSettings) result.globalSettings = globalSettings;
+  if (viewport) {
+    result.viewport = {
+      x: Math.round(viewport.x * 100) / 100,
+      y: Math.round(viewport.y * 100) / 100,
+      zoom: Math.round(viewport.zoom * 10000) / 10000,
+    };
+  }
   return result;
 }
 

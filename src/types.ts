@@ -97,4 +97,5 @@ export interface CanvasState {
   nodes: SerializedNode[];
   edges: SerializedEdge[];
   globalSettings?: GlobalSettings;
+  viewport?: { x: number; y: number; zoom: number };
 }
