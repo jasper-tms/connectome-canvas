@@ -201,8 +201,16 @@ export default function App() {
   // Set selectable/draggable/connectable to false for locked nodes
   const interactiveNodes = useMemo(
     () => nodes.map((n) => {
-      const locked = !!(n.data as NeuronNodeData).locked;
-      const withSettings = { ...n, data: { ...n.data, globalSettings } };
+      const data = n.data as NeuronNodeData;
+      const locked = !!data.locked;
+      // Clip the .react-flow__node wrapper to a circle so drag/hit detection
+      // follows the visible circle, not its bounding rectangle. Radius is
+      // (visible radius + 8) to preserve the 8px border zone where clicks
+      // start a connection (matches the Handle size in NeuronNode.tsx).
+      const style = data.shape === 'circle'
+        ? { clipPath: `circle(${(data.radius ?? 35) + 8}px)` }
+        : undefined;
+      const withSettings = { ...n, data: { ...n.data, globalSettings }, style };
       return locked
         ? { ...withSettings, selectable: false, draggable: false, connectable: false }
         : withSettings;
