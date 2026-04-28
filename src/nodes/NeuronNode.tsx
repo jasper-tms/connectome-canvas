@@ -4,13 +4,17 @@ import { ntColor } from '../types';
 import { arrowVertices, offsetPolygon } from '../utils/geometry';
 
 /**
- * Module-level map that stores the most recent connection-start angle (in degrees)
- * for each node. Keyed by nodeId. Populated by onMouseDown on the node container;
- * read by App.tsx's onConnect callback to attach the angle to new edges.
+ * Module-level maps that store the most recent mousedown info per node. Keyed by
+ * nodeId. Populated by onMouseDown on the node container; read by App.tsx's
+ * onConnect callback.
  *
- * Convention: 0° = right, 90° = down (standard canvas/atan2 orientation).
+ * - pendingAngles: angle in degrees from the node center to the click point.
+ *   Convention: 0° = right, 90° = down (standard canvas/atan2 orientation).
+ * - pendingTimes: Date.now() of the mousedown. Used to enforce the 3-second
+ *   click-to-connect window and to detect intervening cancel events.
  */
 export const pendingAngles = new Map<string, number>();
+export const pendingTimes = new Map<string, number>();
 
 const BORDER_ZONE = 4;
 const ARROW_CORNER_RADIUS = 6;
@@ -202,6 +206,7 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
     const dy = e.clientY - centerY;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180..180
     pendingAngles.set(id, angle);
+    pendingTimes.set(id, Date.now());
   }
 
   return (

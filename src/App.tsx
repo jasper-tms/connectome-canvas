@@ -19,7 +19,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import NeuronNode, { pendingAngles } from './nodes/NeuronNode';
+import NeuronNode, { pendingAngles, pendingTimes } from './nodes/NeuronNode';
 import SynapseEdge from './edges/SynapseEdge';
 import ConnectionLine, { lastConnectionEndPos } from './components/ConnectionLine';
 import Toolbar from './components/Toolbar';
@@ -353,30 +353,83 @@ export default function App() {
     });
   }, []);
 
+  // Click-to-connect guards. XYFlow's connectOnClick keeps the pending
+  // connection alive indefinitely after the first click, even across unrelated
+  // clicks. We constrain it: the second click must happen within 3 seconds and
+  // with no intervening "deselect-like" event (click off a node Handle, or Escape).
+  //
+  // We can't use onConnectStart/onConnectEnd because XYFlow does NOT fire those
+  // for click-to-connect — it has separate internal onClickConnectStart/End
+  // callbacks that aren't exposed at the component level. Instead, we time-stamp
+  // the source mousedown via pendingTimes (set in NeuronNode.handleMouseDown)
+  // and compare against the timestamps of intervening cancel events.
+  const lastNonHandleMouseDownRef = useRef(0);
+  const lastConnectCancelKeyRef = useRef(0);
+
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.react-flow__handle')) return;
+      lastNonHandleMouseDownRef.current = Date.now();
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' || e.key === 'Enter') {
+        lastConnectCancelKeyRef.current = Date.now();
+      }
+    }
+    document.addEventListener('mousedown', onDocMouseDown, true);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown, true);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, []);
+
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
+      // Enforce click-to-connect constraints. The source mousedown time is
+      // captured by NeuronNode.handleMouseDown into pendingTimes. Drag-to-
+      // connect normally fits within 3s and has no intervening non-Handle
+      // mousedown (the user is holding the button), so it passes these checks.
+      const sourceMouseDownTime = pendingTimes.get(connection.source) ?? 0;
+      pendingTimes.delete(connection.source);
+      pendingTimes.delete(connection.target);
+      if (sourceMouseDownTime === 0) return;
+      if (Date.now() - sourceMouseDownTime > 3000) return;
+      if (lastNonHandleMouseDownRef.current > sourceMouseDownTime) return;
+      if (lastConnectCancelKeyRef.current > sourceMouseDownTime) return;
+
       // Read the angle captured by the source node's onMouseDown handler.
       // Default: source exits to the right (0°).
       const sourceAngle = pendingAngles.get(connection.source) ?? 0;
+      // For click-to-connect, the target node's onMouseDown also fires and
+      // records the angle from the target's center to the click point.
+      const cachedTargetAngle = pendingAngles.get(connection.target);
       pendingAngles.delete(connection.source);
       pendingAngles.delete(connection.target);
 
-      // Calculate target angle from the target node center to the connection end position.
-      // This matches how ConnectionLine calculates the angle during the drag preview.
       let targetAngle = 180;
-      const targetNode = nodes.find((n) => n.id === connection.target);
-      if (targetNode) {
-        const dx = lastConnectionEndPos.x - targetNode.position.x;
-        const dy = lastConnectionEndPos.y - targetNode.position.y;
-        targetAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+      if (cachedTargetAngle !== undefined) {
+        targetAngle = cachedTargetAngle;
+      } else {
+        // Drag-to-connect path: only mouseup happens on the target, so
+        // pendingAngles isn't populated. Fall back to the cursor position
+        // tracked by ConnectionLine's mousemove listener.
+        const targetNode = nodes.find((n) => n.id === connection.target);
+        if (targetNode) {
+          const dx = lastConnectionEndPos.x - targetNode.position.x;
+          const dy = lastConnectionEndPos.y - targetNode.position.y;
+          targetAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+        }
       }
 
+      const newEdgeId = `e${nextId()}`;
       setEdges((eds) =>
         addEdge(
           {
             ...connection,
             ...DEFAULT_EDGE_OPTIONS,
-            id: `e${nextId()}`,
+            id: newEdgeId,
             data: {
               synapseCount: 0,
               controlPoints: [],
@@ -387,8 +440,14 @@ export default function App() {
           eds,
         ),
       );
+      // Defer to after XYFlow's click handler runs — otherwise XYFlow's own
+      // node-click selection would overwrite this and leave node 2 selected.
+      setTimeout(() => {
+        setNodes((nds) => nds.map((n) => (n.selected ? { ...n, selected: false } : n)));
+        setEdges((eds) => eds.map((e) => ({ ...e, selected: e.id === newEdgeId })));
+      }, 0);
     },
-    [setEdges, nodes],
+    [setEdges, setNodes, nodes],
   );
 
   function addNode(shape: 'circle' | 'rectangle' | 'arrow') {
