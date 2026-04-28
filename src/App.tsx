@@ -114,6 +114,10 @@ export default function App() {
   // re-run the state-save effect — viewport is persisted to the URL but is
   // intentionally NOT pushed to undo history (undo should only revert content).
   const viewportRef = useRef<Viewport | null>(null);
+  // Latest selection. Mirrors selectedNodeId/selectedEdgeId for use by async
+  // serializers — selection is persisted to the URL but selection-only changes
+  // are intentionally not pushed to undo history.
+  const selectionRef = useRef<{ id: string; type: 'node' | 'edge' } | null>(null);
   // Initial-view coordination. We do NOT use ReactFlow's `fitView` prop because
   // it defers its first fit until nodes have measurements, which races with our
   // async load and clobbers a setViewport from saved state. Instead, we drive
@@ -149,6 +153,10 @@ export default function App() {
             // Legacy URL state without viewport — fit to nodes.
             loadedInitialViewRef.current = 'fit';
           }
+          const sel = state.selection ?? null;
+          selectionRef.current = sel;
+          setSelectedNodeId(sel?.type === 'node' ? sel.id : null);
+          setSelectedEdgeId(sel?.type === 'edge' ? sel.id : null);
           const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
           idCounter = Math.max(idCounter, ...allIds) + 1;
           setHistory([encoded]);
@@ -180,7 +188,7 @@ export default function App() {
     }
     clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(async () => {
-      const state = serializeCanvas(nodes, edges, projectName, globalSettings, viewportRef.current ?? undefined);
+      const state = serializeCanvas(nodes, edges, projectName, globalSettings, viewportRef.current ?? undefined, selectionRef.current);
       const encoded = await encodeState(state);
       setUrlState(encoded);
       setHistory((prev) => {
@@ -210,8 +218,10 @@ export default function App() {
       if (state.globalSettings) setGlobalSettings(state.globalSettings);
       setHistory(newHistory);
       setUrlState(encoded);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
+      const sel = state.selection ?? null;
+      selectionRef.current = sel;
+      setSelectedNodeId(sel?.type === 'node' ? sel.id : null);
+      setSelectedEdgeId(sel?.type === 'edge' ? sel.id : null);
       const allIds = [...newNodes.map((n) => Number(n.id)), ...newEdges.map((e) => Number(e.id.replace(/\D/g, '')) || 0)];
       idCounter = Math.max(idCounter, ...allIds) + 1;
     } catch {
@@ -304,6 +314,33 @@ export default function App() {
     setSelectedNodeId(sNodes.length === 1 ? sNodes[0].id : null);
     setSelectedEdgeId(sEdges.length === 1 ? sEdges[0].id : null);
   }, []);
+
+  // Selection changes are persisted to the URL but do NOT push to history —
+  // selection-only changes shouldn't be undoable. The debounced state-save
+  // effect picks up selectionRef on the next content/setting change.
+  useEffect(() => {
+    const sel: { id: string; type: 'node' | 'edge' } | null = selectedNodeId
+      ? { id: selectedNodeId, type: 'node' }
+      : selectedEdgeId
+      ? { id: selectedEdgeId, type: 'edge' }
+      : null;
+    selectionRef.current = sel;
+    if (!initializedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const state = serializeCanvas(
+        nodes,
+        edges,
+        projectName,
+        globalSettings,
+        viewportRef.current ?? undefined,
+        sel,
+      );
+      const encoded = await encodeState(state);
+      if (!cancelled) setUrlState(encoded);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedNodeId, selectedEdgeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onNodeDoubleClick = useCallback((_event: React.MouseEvent, _node: Node) => {
     // Focus the label input in the properties panel and select all text
@@ -430,7 +467,7 @@ export default function App() {
   function handleExport() {
     const slug = projectName.trim().replace(/\s+/g, '_') || 'untitled';
     downloadFile(
-      exportAsYaml(serializeCanvas(nodes, edges, projectName, globalSettings)),
+      exportAsYaml(serializeCanvas(nodes, edges, projectName, globalSettings, undefined, selectionRef.current)),
       `connectome-canvas_${slug}.yaml`,
     );
   }
@@ -440,8 +477,10 @@ export default function App() {
     const { nodes: newNodes, edges: newEdges } = deserializeCanvas(state);
     setNodes(newNodes);
     setEdges(newEdges);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
+    const sel = state.selection ?? null;
+    selectionRef.current = sel;
+    setSelectedNodeId(sel?.type === 'node' ? sel.id : null);
+    setSelectedEdgeId(sel?.type === 'edge' ? sel.id : null);
     if (state.projectName) setProjectName(state.projectName);
     if (state.globalSettings) setGlobalSettings(state.globalSettings);
     if (state.viewport && reactFlowInstanceRef.current) {
@@ -515,7 +554,7 @@ export default function App() {
     async (_event: MouseEvent | TouchEvent | null, vp: Viewport) => {
       viewportRef.current = vp;
       if (!initializedRef.current) return;
-      const state = serializeCanvas(nodes, edges, projectName, globalSettings, vp);
+      const state = serializeCanvas(nodes, edges, projectName, globalSettings, vp, selectionRef.current);
       const encoded = await encodeState(state);
       setUrlState(encoded);
     },

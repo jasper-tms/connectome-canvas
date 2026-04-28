@@ -8,6 +8,7 @@ export function serializeCanvas(
   projectName?: string,
   globalSettings?: GlobalSettings,
   viewport?: { x: number; y: number; zoom: number },
+  selection?: { id: string; type: 'node' | 'edge' } | null,
 ): CanvasState {
   const serializedNodes: SerializedNode[] = nodes.map((n) => {
     const d = n.data as NeuronNodeData;
@@ -59,10 +60,12 @@ export function serializeCanvas(
       zoom: Math.round(viewport.zoom * 10000) / 10000,
     };
   }
+  if (selection) result.selection = selection;
   return result;
 }
 
 export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: Edge[] } {
+  const sel = state.selection;
   const nodes: Node[] = state.nodes.map((n) => {
     const data: NeuronNodeData = {
       label: n.label,
@@ -78,30 +81,36 @@ export function deserializeCanvas(state: CanvasState): { nodes: Node[]; edges: E
     if (n.rotateLabel === false) data.rotateLabel = false;
     if (n.locked) data.locked = true;
     if (n.customProperties && Object.keys(n.customProperties).length > 0) data.customProperties = n.customProperties;
-    return {
+    const node: Node = {
       id: n.id,
       type: 'neuron',
       position: n.position,
       data,
     };
+    if (sel?.type === 'node' && sel.id === n.id) node.selected = true;
+    return node;
   });
 
-  const edges: Edge[] = state.edges.map((e) => ({
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    sourceHandle: e.sourceHandle ?? undefined,
-    targetHandle: e.targetHandle ?? undefined,
-    type: 'synapse',
-    markerEnd: { type: 'arrowclosed' } as any,
-    data: {
-      synapseCount: e.synapseCount,
-      controlPoints: e.controlPoints ?? [],
-      ...(e.labelPosition !== undefined ? { labelPosition: e.labelPosition } : {}),
-      ...(e.sourceAngle !== undefined ? { sourceAngle: e.sourceAngle } : {}),
-      ...(e.targetAngle !== undefined ? { targetAngle: e.targetAngle } : {}),
-    } satisfies SynapseEdgeData,
-  }));
+  const edges: Edge[] = state.edges.map((e) => {
+    const edge: Edge = {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle ?? undefined,
+      targetHandle: e.targetHandle ?? undefined,
+      type: 'synapse',
+      markerEnd: { type: 'arrowclosed' } as any,
+      data: {
+        synapseCount: e.synapseCount,
+        controlPoints: e.controlPoints ?? [],
+        ...(e.labelPosition !== undefined ? { labelPosition: e.labelPosition } : {}),
+        ...(e.sourceAngle !== undefined ? { sourceAngle: e.sourceAngle } : {}),
+        ...(e.targetAngle !== undefined ? { targetAngle: e.targetAngle } : {}),
+      } satisfies SynapseEdgeData,
+    };
+    if (sel?.type === 'edge' && sel.id === e.id) edge.selected = true;
+    return edge;
+  });
 
   return { nodes, edges };
 }

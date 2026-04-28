@@ -98,4 +98,5 @@ export interface CanvasState {
   edges: SerializedEdge[];
   globalSettings?: GlobalSettings;
   viewport?: { x: number; y: number; zoom: number };
+  selection?: { id: string; type: 'node' | 'edge' };
 }
