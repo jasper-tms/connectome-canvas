@@ -21,6 +21,14 @@ const ACTIVE_REGION_BASE_OUTSET = 8;
 // Zoom limits — kept in sync with App.tsx's <ReactFlow minZoom/maxZoom>.
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 20;
+// Minimum on-screen border thickness in CSS pixels. Borders are sized in
+// flow units but rendered inside the zoom-transformed viewport, so the
+// rendered width is `outlineWidth * zoom`. Floor at 1 px (unselected) and
+// 2 px (selected) so borders don't become sub-pixel and alias out at low
+// zoom. Active only below the floor's crossover (zoom < 0.5×); above that
+// the baselines (2 / 4) dominate and there's no effect.
+const MIN_SCREEN_BORDER_PX = 1;
+const MIN_SCREEN_BORDER_PX_SELECTED = 2;
 
 /**
  * Scale factor for the active-region outset based on canvas zoom. Piecewise
@@ -198,7 +206,10 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
   const isConnectionTarget = isValidTarget && (connection as any).toNode?.id === id;
 
   const outlineColor = color;
-  const outlineWidth = selected ? 4 : 2;
+  const zoom = useStore((s) => s.transform[2]);
+  const outlineWidth = selected
+    ? Math.max(4, MIN_SCREEN_BORDER_PX_SELECTED / zoom)
+    : Math.max(2, MIN_SCREEN_BORDER_PX / zoom);
 
   const radius = nodeData.radius ?? 35;
   const rectWidth = nodeData.width ?? 90;
@@ -208,7 +219,6 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeWidth = shape === 'circle' ? radius * 2 : rectWidth;
   const nodeHeight = shape === 'circle' ? radius * 2 : rectHeight;
 
-  const zoom = useStore((s) => s.transform[2]);
   const activeOutset = ACTIVE_REGION_BASE_OUTSET * activeRegionScale(zoom);
 
   const arrowHandle = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, -activeOutset) : null;
