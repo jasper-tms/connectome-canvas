@@ -1,7 +1,6 @@
-import { Handle, Position, NodeProps, useConnection, useEdges } from '@xyflow/react';
+import { Handle, Position, NodeProps, useConnection, useEdges, useStore } from '@xyflow/react';
 import type { NeuronNodeData, GlobalSettings } from '../types';
 import { ntColor } from '../types';
-import { arrowVertices, offsetPolygon } from '../utils/geometry';
 
 /**
  * Module-level maps that store the most recent mousedown info per node. Keyed by
@@ -18,6 +17,27 @@ export const pendingTimes = new Map<string, number>();
 
 const BORDER_ZONE = 4;
 const ARROW_CORNER_RADIUS = 6;
+const ACTIVE_REGION_BASE_OUTSET = 8;
+// Zoom limits — kept in sync with App.tsx's <ReactFlow minZoom/maxZoom>.
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 20;
+
+/**
+ * Scale factor for the active-region outset based on canvas zoom. Piecewise
+ * linear in log2(zoom): 2× at the most zoomed-out, 1× at zoom=1, 0.5× at the
+ * most zoomed-in. Keeps the dashed target border visually thicker when the
+ * user is zoomed out (so it's easier to see and click) and thinner when
+ * zoomed in (so it doesn't dwarf the node).
+ */
+function activeRegionScale(zoom: number): number {
+  const lz = Math.log2(Math.max(zoom, 1e-6));
+  if (lz <= 0) {
+    const t = Math.min(1, -lz / -Math.log2(ZOOM_MIN));
+    return 1 + t;
+  }
+  const t = Math.min(1, lz / Math.log2(ZOOM_MAX));
+  return 1 - 0.5 * t;
+}
 
 /**
  * Build an arrow path whose rendered (rounded) bounding box is exactly
@@ -103,26 +123,60 @@ function arrowSvgPath(W: number, H: number, r: number = ARROW_CORNER_RADIUS): {
   return { d: d + ' Z', outerLeft: -dxL, outerRight: W + dxR };
 }
 
+/**
+ * Closed-form offset polygon for the arrow shape, in centered coordinates
+ * (origin at node center). Sign convention: `offset > 0` insets (shrinks),
+ * `offset < 0` outsets (expands), matching the previous offsetPolygon utility.
+ *
+ * Each offset edge is computed by shifting the original edge perpendicularly
+ * and intersecting adjacent shifted edges. Worked out in closed form below,
+ * so each offset edge is exactly parallel to its original — important for
+ * wide arrows, where the top-corner offset distance can exceed the generic
+ * offsetPolygon's vertex-movement cap and produce a sloped offset edge.
+ *
+ * Letting W2 = halfW, H2 = halfH, I = W2/4 (indent), L = √(I² + H2²),
+ * and o = -offset (the outset, with positive = expand), the offset vertices
+ * are derived by intersecting the perpendicularly-shifted edges:
+ *   top/bottom-left corner x-shift:  o * (L + I) / H2  (away from center)
+ *   top/bottom-right corner x-shift: o * (L − I) / H2  (away from center)
+ *   tip / notch x-shift:             o * L / H2        (away from center)
+ *   horizontal edges shift by o in y.
+ */
 function arrowClipData(
   nodeWidth: number,
   nodeHeight: number,
   offset: number,
-): { clipPath: string; width: number; height: number } {
+): { clipPath: string; pathD: string; width: number; height: number } {
   const halfW = nodeWidth / 2;
   const halfH = nodeHeight / 2;
-  const verts = arrowVertices(halfW, halfH);
-  const poly = offset !== 0 ? offsetPolygon(verts, offset) : verts;
+  const indent = halfW / 4;
+  const L = Math.hypot(indent, halfH);
+  const o = -offset;
+  const dEnd = (o * (L + indent)) / halfH;
+  const dShort = (o * (L - indent)) / halfH;
+  const dTip = (o * L) / halfH;
+  const verts = [
+    { x: -halfW - dEnd, y: -halfH - o },              // top-left
+    { x: halfW - indent + dShort, y: -halfH - o },    // top-right
+    { x: halfW + dTip, y: 0 },                         // tip
+    { x: halfW - indent + dShort, y: halfH + o },     // bottom-right
+    { x: -halfW - dEnd, y: halfH + o },               // bottom-left
+    { x: -halfW + indent - dTip, y: 0 },              // notch
+  ];
   let maxAbsX = 0, maxAbsY = 0;
-  for (const v of poly) {
+  for (const v of verts) {
     maxAbsX = Math.max(maxAbsX, Math.abs(v.x));
     maxAbsY = Math.max(maxAbsY, Math.abs(v.y));
   }
   const elemW = maxAbsX * 2 + 2;
   const elemH = maxAbsY * 2 + 2;
-  const pts = poly.map(v =>
-    `${((v.x + elemW / 2) / elemW * 100).toFixed(2)}% ${((v.y + elemH / 2) / elemH * 100).toFixed(2)}%`
+  const pts = verts.map(v =>
+    `${((v.x + elemW / 2) / elemW * 100).toFixed(3)}% ${((v.y + elemH / 2) / elemH * 100).toFixed(3)}%`
   );
-  return { clipPath: `polygon(${pts.join(', ')})`, width: elemW, height: elemH };
+  const pathD = verts.map((v, i) =>
+    `${i === 0 ? 'M' : 'L'} ${(v.x + elemW / 2).toFixed(3)} ${(v.y + elemH / 2).toFixed(3)}`
+  ).join(' ') + ' Z';
+  return { clipPath: `polygon(${pts.join(', ')})`, pathD, width: elemW, height: elemH };
 }
 
 export default function NeuronNode({ id, data, selected }: NodeProps) {
@@ -154,7 +208,10 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
   const nodeWidth = shape === 'circle' ? radius * 2 : rectWidth;
   const nodeHeight = shape === 'circle' ? radius * 2 : rectHeight;
 
-  const arrowHandle = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, -8) : null;
+  const zoom = useStore((s) => s.transform[2]);
+  const activeOutset = ACTIVE_REGION_BASE_OUTSET * activeRegionScale(zoom);
+
+  const arrowHandle = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, -activeOutset) : null;
   const arrowInterior = shape === 'arrow' ? arrowClipData(nodeWidth, nodeHeight, BORDER_ZONE) : null;
 
   const shapeStyle: React.CSSProperties =
@@ -232,12 +289,12 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           transform: (shape === 'rectangle' || shape === 'arrow')
             ? `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`
             : 'translate(-50%, -50%)',
-          width: arrowHandle ? arrowHandle.width : nodeWidth + 16,
-          height: arrowHandle ? arrowHandle.height : nodeHeight + 16,
+          width: arrowHandle ? arrowHandle.width : nodeWidth + 2 * activeOutset,
+          height: arrowHandle ? arrowHandle.height : nodeHeight + 2 * activeOutset,
           borderRadius: shape === 'circle' ? '50%' : shape === 'arrow' ? 0 : 6,
           clipPath: arrowHandle?.clipPath,
           background: 'transparent',
-          border: isConnecting && isValidTarget
+          border: isConnecting && isValidTarget && shape !== 'arrow'
             ? `2px dashed ${isConnectionTarget ? color : color + '88'}`
             : 'none',
           opacity: 1,
@@ -245,6 +302,34 @@ export default function NeuronNode({ id, data, selected }: NodeProps) {
           zIndex: 10,
         }}
       />}
+
+      {/* Arrow shape: dashed border traced along the offset polygon edges.
+          A CSS border on the Handle would render around the rectangular bbox
+          (and get sliced by the clipPath), so we draw the polygon outline as
+          an SVG path instead. */}
+      {shape === 'arrow' && arrowHandle && isConnecting && isValidTarget && (
+        <svg
+          width={arrowHandle.width}
+          height={arrowHandle.height}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: `translate(-50%, -50%) rotate(${rotation ?? 0}deg)`,
+            pointerEvents: 'none',
+            overflow: 'visible',
+            zIndex: 11,
+          }}
+        >
+          <path
+            d={arrowHandle.pathD}
+            fill="none"
+            stroke={isConnectionTarget ? color : color + '88'}
+            strokeWidth={2}
+            strokeDasharray="6 4"
+          />
+        </svg>
+      )}
 
       {/* Interior hit-zone: sits above the Handle (z‑index 20) so interior pointer
           events bubble through to XYFlow's drag handler instead of starting a connection. */}
