@@ -387,17 +387,26 @@ export default function App() {
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
-      // Enforce click-to-connect constraints. The source mousedown time is
-      // captured by NeuronNode.handleMouseDown into pendingTimes. Drag-to-
-      // connect normally fits within 3s and has no intervening non-Handle
-      // mousedown (the user is holding the button), so it passes these checks.
+      // For click-to-connect, the target's onMouseDown fires before onConnect
+      // and populates pendingAngles for the target. For drag-to-connect, the
+      // mouse stays down between source and target, so the target only gets
+      // a mouseup (no onMouseDown), and pendingAngles has no target entry.
+      const isClickToConnect = pendingAngles.has(connection.target);
+
+      // The source mousedown time is captured by NeuronNode.handleMouseDown
+      // into pendingTimes. Click-to-connect needs guards because XYFlow keeps
+      // the pending connection alive indefinitely after the first click;
+      // drag-to-connect doesn't (XYFlow handles cancellation internally) and
+      // a slow drag should still succeed, so the guards are skipped for it.
       const sourceMouseDownTime = pendingTimes.get(connection.source) ?? 0;
       pendingTimes.delete(connection.source);
       pendingTimes.delete(connection.target);
       if (sourceMouseDownTime === 0) return;
-      if (Date.now() - sourceMouseDownTime > 3000) return;
-      if (lastNonHandleMouseDownRef.current > sourceMouseDownTime) return;
-      if (lastConnectCancelKeyRef.current > sourceMouseDownTime) return;
+      if (isClickToConnect) {
+        if (Date.now() - sourceMouseDownTime > 3000) return;
+        if (lastNonHandleMouseDownRef.current > sourceMouseDownTime) return;
+        if (lastConnectCancelKeyRef.current > sourceMouseDownTime) return;
+      }
 
       // Read the angle captured by the source node's onMouseDown handler.
       // Default: source exits to the right (0°).
